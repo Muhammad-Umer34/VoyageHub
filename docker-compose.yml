@@ -12,7 +12,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./db_data:/var/lib/postgresql/data   # ✅ bind mount to local folder
+      - ./db_data:/var/lib/postgresql/data  
     networks:
       - itinerary_net
 
@@ -21,8 +21,8 @@ services:
     container_name: itinerary_pgadmin
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@itinerary.com
-      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"
     depends_on:
