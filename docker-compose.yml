@@ -12,9 +12,14 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./db_data:/var/lib/postgresql/data  
+      - ./db_data:/var/lib/postgresql/data
     networks:
       - itinerary_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U itinerary_user -d itinerary_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   pgadmin:
     image: dpage/pgadmin4
@@ -29,35 +34,35 @@ services:
       - postgres
     networks:
       - itinerary_net
-    
+
   backend:
     build: ./backend
     container_name: itinerary_backend
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
-    environment:
-      DATABASE_URL: postgres://itinerary_user:itinerary_pass@postgres:5432/itinerary_db
+    env_file:
+      - ./backend/.env   # ✅ Load environment variables automatically
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     volumes:
       - ./backend:/app
     networks:
       - itinerary_net
-  
+
   frontend:
     build: ./frontend
     container_name: itinerary_frontend
     ports:
-    - "5173:5173"
+      - "5173:5173"
     volumes:
-    - ./frontend:/app
-    - /app/node_modules
+      - ./frontend:/app
+      - /app/node_modules
     networks:
-    - itinerary_net
+      - itinerary_net
     depends_on:
-    - backend
-
+      - backend
 
 networks:
   itinerary_net:
