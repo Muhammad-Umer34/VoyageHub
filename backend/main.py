@@ -1,11 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from backend.database import engine, Base, get_db
-from backend import crud, schemas
-from backend.auth.hashing import hash_password, verify_password
-from backend.auth.jwt_handler import create_access_token
-
+from database import engine, Base, get_db
+import crud, schemas
+from auth.hashing import hash_password, verify_password
+from auth.jwt_handler import create_access_token
+from auth.dependencies import get_current_user
 from fastapi.middleware.cors import CORSMiddleware
 
 Base.metadata.create_all(bind=engine)
@@ -20,6 +20,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/test")
+async def test():
+    return {"status": "ok"}
 
 @app.post("/auth/register", response_model=schemas.UserOut)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
@@ -45,7 +50,7 @@ def read_me(current_user = Depends(lambda: None)):  # replaced below
     return {"id": 1, "email": "test@example.com"}
 
 # Proper protected endpoint example:
-from .auth.dependencies import get_current_user
+
 @app.get("/protected", response_model=schemas.UserOut)
 def protected_route(current_user = Depends(get_current_user)):
     return current_user

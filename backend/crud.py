@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from backend import models, schemas
+import models, schemas  # Changed from '. import' to direct import
 
 
 def get_user_by_email(db: Session, email: str):

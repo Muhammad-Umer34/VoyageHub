@@ -1,8 +1,10 @@
 fastapi
 uvicorn[standard]
-SQLAlchemy==2.0.22
+sqlalchemy
 psycopg2-binary
-python-dotenv
-passlib[argon2]
+pydantic[email]
+python-jose[cryptography]
+passlib==1.7.4
+bcrypt==4.0.1
+python-multipart
 PyJWT
-python-multipart      
