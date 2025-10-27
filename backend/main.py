@@ -12,15 +12,13 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Itinerary Planner API")
 
-# allow front-end origin(s) — adjust in production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["http://localhost:5173","http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 @app.get("/test")
 async def test():
@@ -37,7 +35,6 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
 
 @app.post("/auth/token", response_model=schemas.Token)
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    # OAuth2PasswordRequestForm uses fields 'username' and 'password'
     user = crud.get_user_by_email(db, email=form_data.username)
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect username or password")
@@ -45,11 +42,8 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.get("/me", response_model=schemas.UserOut)
-def read_me(current_user = Depends(lambda: None)):  # replaced below
-    # placeholder (we will wire properly below)
+def read_me(current_user = Depends(lambda: None)):
     return {"id": 1, "email": "test@example.com"}
-
-# Proper protected endpoint example:
 
 @app.get("/protected", response_model=schemas.UserOut)
 def protected_route(current_user = Depends(get_current_user)):
