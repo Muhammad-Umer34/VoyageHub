@@ -1,17 +1,35 @@
 from sqlalchemy.orm import Session
-import models, schemas  # Changed from '. import' to direct import
+from sqlalchemy import literal
+from fastapi import HTTPException
+from models import User
+import logging
 
+logger = logging.getLogger(__name__)
 
 def get_user_by_email(db: Session, email: str):
-    return db.query(models.User).filter(models.User.email == email).first()
+    try:
+        # Use limit with literal(1) to force literal LIMIT 1 in SQL
+        user = db.query(User).filter(User.email == email).limit(literal(1)).first()
+        return user
+    except Exception as e:
+        logger.error(f"Error fetching user by email {email}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-def create_user(db: Session, user: schemas.UserCreate, hashed_password: str):
-    db_user = models.User(
-        email=user.email,
-        hashed_password=hashed_password,
-        full_name=user.full_name
-    )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
+def create_user(db: Session, user, hashed_password, verification_code, code_expiry):
+    try:
+        db_user = User(
+            email=user.email,
+            full_name=user.full_name,
+            hashed_password=hashed_password,
+            verification_code=verification_code,
+            code_expiry=code_expiry,
+            is_verified=False
+        )
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        return db_user
+    except Exception as e:
+        logger.error(f"Error creating user {user.email}: {e}")
+        db.rollback()  
+        raise HTTPException(status_code=500, detail="Internal server error")
