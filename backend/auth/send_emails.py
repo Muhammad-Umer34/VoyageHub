@@ -8,8 +8,9 @@ load_dotenv()
 
 EMAIL_FROM = os.getenv("EMAIL_FROM", "your_email@gmail.com")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
-SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+SMTP_SERVER = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("EMAIL_PORT", 587))
+
 
 async def send_verification_email(recipient_email: str, verification_code: str):
     """

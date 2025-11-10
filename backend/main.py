@@ -12,14 +12,8 @@ from datetime import datetime, timedelta
 import random
 from auth.send_emails import send_verification_email
 
-# ===========================================
-# DATABASE INITIALIZATION
-# ===========================================
 Base.metadata.create_all(bind=engine)
 
-# ===========================================
-# APP CONFIGURATION
-# ===========================================
 app = FastAPI(title="Itinerary Planner API")
 
 app.add_middleware(
@@ -34,9 +28,6 @@ app.add_middleware(
 async def test():
     return {"status": "ok"}
 
-# ===========================================
-# USER REGISTRATION WITH EMAIL VERIFICATION
-# ===========================================
 @app.post("/auth/register")
 def register(
     user: schemas.UserCreate,
@@ -46,14 +37,10 @@ def register(
     existing = crud.get_user_by_email(db, user.email)
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-
     hashed = hash_password(user.password)
-
-    # Generate verification code and expiry
     verification_code = str(random.randint(100000, 999999))
     expiry_time = datetime.utcnow() + timedelta(minutes=10)
 
-    # Create user (unverified)
     db_user = crud.create_user(
         db,
         user=user,
@@ -62,14 +49,10 @@ def register(
         code_expiry=expiry_time
     )
 
-    # Send email in the background
     background_tasks.add_task(send_verification_email, user.email, verification_code)
 
     return {"message": "User registered. Verification code sent to your email."}
 
-# ===========================================
-# VERIFY EMAIL ENDPOINT
-# ===========================================
 class EmailVerificationRequest(BaseModel):
     email: str
     code: str
@@ -89,7 +72,6 @@ def verify_email(request: EmailVerificationRequest, db: Session = Depends(get_db
     if datetime.utcnow() > user.code_expiry:
         raise HTTPException(status_code=400, detail="Verification code expired")
 
-    # Mark user as verified
     user.is_verified = True
     user.verification_code = None
     user.code_expiry = None
@@ -97,9 +79,6 @@ def verify_email(request: EmailVerificationRequest, db: Session = Depends(get_db
     db.refresh(user)
     return {"message": "Email verified successfully!"}
 
-# ===========================================
-# RESEND VERIFICATION CODE
-# ===========================================
 class ResendCodeRequest(BaseModel):
     email: str
 
@@ -127,9 +106,6 @@ def resend_code(
     background_tasks.add_task(send_verification_email, user.email, new_code)
     return {"message": "A new verification code has been sent to your email."}
 
-# ===========================================
-# LOGIN (ONLY FOR VERIFIED USERS)
-# ===========================================
 @app.post("/auth/token", response_model=schemas.Token)
 def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -151,9 +127,6 @@ def login_for_access_token(
         "token_type": "bearer",
     }
 
-# ===========================================
-# REFRESH TOKEN ENDPOINT
-# ===========================================
 class TokenRefreshRequest(BaseModel):
     refresh_token: str
 
@@ -166,9 +139,7 @@ def refresh_access_token(request: TokenRefreshRequest):
     new_access_token = create_access_token({"sub": payload["sub"]})
     return {"access_token": new_access_token, "token_type": "bearer"}
 
-# ===========================================
-# USER INFO AND PROTECTED ROUTE
-# ===========================================
+
 @app.get("/me", response_model=schemas.UserOut)
 def read_me(current_user=Depends(get_current_user)):
     return current_user

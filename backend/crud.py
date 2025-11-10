@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 def get_user_by_email(db: Session, email: str):
     try:
-        # Use limit with literal(1) to force literal LIMIT 1 in SQL
         user = db.query(User).filter(User.email == email).limit(literal(1)).first()
         return user
     except Exception as e:
