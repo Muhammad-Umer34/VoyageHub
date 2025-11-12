@@ -11,6 +11,9 @@ from pydantic import BaseModel
 from datetime import datetime, timedelta
 import random
 from auth.send_emails import send_verification_email
+from auth.forget_password import create_forget_password_token, verify_forget_password_token
+from auth.send_forget_password_email import send_forget_password_email
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -126,6 +129,61 @@ def login_for_access_token(
         "refresh_token": refresh_token,
         "token_type": "bearer",
     }
+
+class ForgetPasswordRequest(BaseModel):
+    email: str
+
+@app.post("/auth/forget-password")
+def forget_password(
+    request: ForgetPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    user = crud.get_user_by_email(db, email=request.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    token = create_forget_password_token({"sub": user.email})
+    reset_link = f"http://localhost:5173/reset-password?token={token}"
+
+    background_tasks.add_task(send_forget_password_email, user.email, reset_link)
+
+    return {"message": "Password reset email sent successfully."}
+
+
+class VerifyForgetPasswordRequest(BaseModel):
+    token: str
+
+@app.post("/auth/verify-forget-password")
+def verify_forget_password(request: VerifyForgetPasswordRequest):
+    payload = verify_forget_password_token(request.token) 
+    if not payload:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    return {"message": "Token is valid", "email": payload["sub"]}
+
+
+class PasswordResetRequest(BaseModel):
+    token: str
+    new_password: str
+
+@app.post("/auth/reset-password")
+def reset_password(request: PasswordResetRequest, db: Session = Depends(get_db)):
+    payload = verify_forget_password_token(request.token)
+    if not payload:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    user = crud.get_user_by_email(db, email=payload["sub"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    hashed = hash_password(request.new_password)
+    user.hashed_password = hashed
+    db.commit()
+    db.refresh(user)
+
+    return {"message": "Password has been reset successfully."}
+  
 
 class TokenRefreshRequest(BaseModel):
     refresh_token: str

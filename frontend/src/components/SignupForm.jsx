@@ -1,16 +1,31 @@
 import { useState } from "react";
 import Divider from "@mui/material/Divider";
-import googleIcon from "../assets/search.png";
-import facebookIcon from "../assets/facebook.png";
 import { SignupApi } from "../api/auth";
+import { VerifyEmail } from "../api/auth";
+
 const SignupForm = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [displayForm, setDisplayForm] = useState(true);
+  
+  const handleVerifyEmail =async (e) => {
+    e.preventDefault();
+    const formdata = {
+      email: email,
+      code: code,
+    };
+    console.log("Verifying email with:", formdata);
+     const response = await VerifyEmail(formdata);
+    if(response.status === 200){
+     console.log("Sucessfully verified")
+     }
+  };
 
- const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const formData = {
       firstName,
@@ -20,17 +35,25 @@ const SignupForm = () => {
       confirmPassword,
     };
     const data_to_send = {
-      email : email,
-      password : password,
-      full_name : firstName + " " + lastName,
-    }
-    console.log(formData);
-    console.log("The data sent to backend is : ",data_to_send);
+      email: email,
+      password: password,
+      full_name: firstName + " " + lastName,
+    };
+    console.log("Form Data:", formData);
+    console.log("Data sent to backend:", data_to_send);
+    // Simulating API call
     const response = await SignupApi(data_to_send);
-    console.log(response);
+    if(response.status === 200){
+    setDisplayForm(false);
+     }
   };
 
-  return (
+  const handleResendCode = () => {
+    console.log("Resend code clicked");
+    // No action as per requirements
+  };
+
+  return displayForm ? (
     <div className="min-h-screen flex flex-col items-center justify-center bg-white px-6 py-10">
       <div className="bg-white/95 rounded-xl w-full max-w-md p-8">
         <h1 className="text-3xl font-semibold text-center text-[#13C892] mb-6">
@@ -39,36 +62,33 @@ const SignupForm = () => {
 
         <div className="flex flex-col gap-6 mb-8">
           <button className="relative flex items-center justify-center bg-white border border-gray-300 rounded-full py-4 px-6 hover:bg-gray-50 transition">
-            <img
-              src={googleIcon}
-              alt="Google"
-              className="w-6 h-6 absolute left-6"
-            />
+            <svg className="w-6 h-6 absolute left-6" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
             <span className="font-medium text-gray-700 text-lg">
               Sign up with Google
             </span>
           </button>
           <button className="relative flex items-center justify-center bg-white border border-gray-300 rounded-full py-4 px-6 hover:bg-gray-50 transition">
-            <img
-              src={facebookIcon}
-              alt="Facebook"
-              className="w-6 h-6 absolute left-6"
-            />
+            <svg className="w-6 h-6 absolute left-6" viewBox="0 0 24 24" fill="#1877F2">
+              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+            </svg>
             <span className="font-medium text-gray-700 text-lg">
               Sign up with Facebook
             </span>
           </button>
         </div>
 
-        {/* Divider */}
-        <div className="flex items-center gap-2 mb-6 text-gray-400">
-          <Divider className="flex-1" />
+        <div className="flex items-center gap-2 mb-6">
+          <div className="flex-1 border-t border-gray-300"></div>
           <span className="text-sm text-gray-500">OR</span>
-          <Divider className="flex-1" />
+          <div className="flex-1 border-t border-gray-300"></div>
         </div>
 
-        {/* Form */}
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <div className="space-y-4">
           <div className="flex gap-3">
             <input
               type="text"
@@ -116,12 +136,55 @@ const SignupForm = () => {
           />
 
           <button
-            type="submit"
+            onClick={handleSubmit}
             className="w-full bg-[#13C892] text-white font-semibold py-3 rounded-full hover:bg-[#10b981] transition text-lg cursor-pointer"
           >
             Create Account
           </button>
-        </form>
+        </div>
+      </div>
+    </div>
+  ) : (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-white px-6 py-10">
+      <div className="bg-white/95 rounded-xl w-full max-w-md p-8">
+        <h1 className="text-3xl font-semibold text-center text-[#13C892] mb-6">
+          Verify Your Email
+        </h1>
+
+        <p className="text-center text-gray-600 mb-8">
+          We've sent a verification code to <strong>{email}</strong>
+        </p>
+
+        <div className="space-y-4">
+          <input
+            type="text"
+            placeholder="Enter verification code"
+            required
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            className="w-full border border-gray-300 rounded-md px-3 py-3 text-lg text-center tracking-widest focus:ring-2 focus:ring-[#13C892] focus:outline-none"
+            maxLength={6}
+          />
+
+          <button
+            onClick={handleVerifyEmail}
+            className="w-full bg-[#13C892] text-white font-semibold py-3 rounded-full hover:bg-[#10b981] transition text-lg cursor-pointer"
+          >
+            Verify Email
+          </button>
+        </div>
+
+        <div className="text-center mt-6">
+          <p className="text-gray-600 text-sm">
+            Didn't receive the code?{" "}
+            <button
+              onClick={handleResendCode}
+              className="text-[#13C892] hover:underline font-medium"
+            >
+              Resend Code
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   );
