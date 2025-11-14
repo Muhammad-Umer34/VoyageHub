@@ -8,15 +8,24 @@ logger = logging.getLogger(__name__)
 
 def get_user_by_email(db: Session, email: str):
     try:
-        user = db.query(User).filter(User.email == email).limit(literal(1)).first()
+        user = db.query(User).filter(User.email == email).first()
         return user
     except Exception as e:
         logger.error(f"Error fetching user by email {email}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+def get_user_by_username(db: Session, username: str):  # ✅ ADD THIS FUNCTION
+    try:
+        user = db.query(User).filter(User.username == username).first()
+        return user
+    except Exception as e:
+        logger.error(f"Error fetching user by username {username}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 def create_user(db: Session, user, hashed_password, verification_code, code_expiry):
     try:
         db_user = User(
+            username=user.username,  # ✅ ADD THIS
             email=user.email,
             full_name=user.full_name,
             hashed_password=hashed_password,

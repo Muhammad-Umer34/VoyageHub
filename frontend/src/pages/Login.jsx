@@ -1,142 +1,141 @@
 import { useState } from "react";
-import Divider from "@mui/material/Divider";
-import bgImage from "../assets/ian-dooley-hpTH5b6mo2s-unsplash.jpg";
-import googleIcon from "../assets/search.png";
-import facebookIcon from "../assets/facebook.png";
 import { useNavigate } from "react-router-dom";
 import { LoginApi } from "../api/auth";
+import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
+import bgImage from "../assets/ian-dooley-hpTH5b6mo2s-unsplash.jpg";
 
 const Login = () => {
   const navigate = useNavigate();
-  const [email, setemail] = useState("");
-  const [password, setPassword] = useState("");
-  const handleLogin = async (e) => {
+  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const loginData = {
-      email,
-      password,
-    };
-    console.log("Login data:", loginData);
-    const response = await LoginApi(loginData);
-    if (response.status === 200) {
-      console.log("Login successful");
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await LoginApi(formData);
+      if (response.status === 200) {
+        console.log("Login successful");
+        // Store token if available
+        if (response.data.access_token) {
+          localStorage.setItem("token", response.data.access_token);
+        }
+        navigate("/dashboard");
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.detail || "Invalid credentials. Please try again.";
+      setError(errorMsg);
+      console.error("Login error:", err);
+    } finally {
+      setLoading(false);
     }
-    console.log(response);
   };
-  const handleForgotPassword = () => {
-    console.log("Forgot password clicked");
-    navigate("/forget-password");
-  };
-  const handleCreateAccount = () => {
-    console.log("Create account clicked");
-    navigate("/signup");
-  };
+
   return (
     <div
-      className="flex items-center justify-center bg-cover bg-center bg-no-repeat relative py-32"
-      style={{
-        backgroundImage: `url(${bgImage})`,
-      }}
+      className="min-h-screen flex items-center justify-center bg-cover bg-center relative py-12"
+      style={{ backgroundImage: `url(${bgImage})` }}
     >
-      {/* Overlay for better readability */}
-      <div className="absolute inset-0 bg-black/40"></div>
-      {/* Login Form */}
-      <div className="relative z-10 bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
-        <h1 className="text-3xl font-bold text-center text-[#13C892] mb-2">
-          Welcome Back
-        </h1>
-        <p className="text-center text-gray-600 mb-6">Sign in to continue</p>
-
-        {/* Social Buttons */}
-        <div className="flex flex-col gap-3 mb-4">
-          <button className="relative flex items-center justify-center bg-white border border-gray-300 rounded-full py-2 px-4 hover:bg-gray-50 transition cursor-pointer">
-            <img
-              src={googleIcon}
-              alt="Google"
-              className="w-5 h-5 absolute left-4"
-            />
-            <span className="font-medium text-gray-700 text-sm">
-              Sign in with Google
-            </span>
-          </button>
-          <button className="relative flex items-center justify-center bg-white border border-gray-300 rounded-full py-2 px-4 hover:bg-gray-50 transition cursor-pointer">
-            <img
-              src={facebookIcon}
-              alt="Facebook"
-              className="w-5 h-5 absolute left-4"
-            />
-            <span className="font-medium text-gray-700 text-sm">
-              Sign in with Facebook
-            </span>
-          </button>
-        </div>
-
-        {/* Divider */}
-        <div className="flex items-center gap-2 mb-4 text-gray-400">
-          <Divider className="flex-1" />
-          <span className="text-xs text-gray-500">OR</span>
-          <Divider className="flex-1" />
-        </div>
-
-        <form className="space-y-3" onSubmit={handleLogin}>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email or Username
-            </label>
-            <input
-              type="text"
-              placeholder="Enter your email or username"
-              value={email}
-              onChange={(e) => setemail(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#13C892] focus:border-transparent focus:outline-none transition"
-              required
-            />
+      <div className="absolute inset-0 bg-black/50"></div>
+      
+      <div className="relative z-10 bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#13C892]/10 rounded-full mb-4">
+            <Lock className="w-8 h-8 text-[#13C892]" />
           </div>
+          <h1 className="text-3xl font-bold text-[#13C892] mb-2">Welcome Back</h1>
+          <p className="text-gray-600">Sign in to continue</p>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-red-800">{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#13C892] focus:border-transparent outline-none transition"
+                placeholder="you@example.com"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Password
             </label>
-            <input
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#13C892] focus:border-transparent focus:outline-none transition"
-              required
-            />
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type={showPassword ? "text" : "password"}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#13C892] focus:border-transparent outline-none transition"
+                placeholder="••••••••"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
+
           <div className="flex items-center justify-between">
             <label className="flex items-center">
-              <input
-                type="checkbox"
-                className="w-3 h-3 text-[#13C892] border-gray-300 rounded focus:ring-[#13C892]"
-              />
-              <span className="ml-2 text-xs text-gray-600">Remember me</span>
+              <input type="checkbox" className="w-4 h-4 text-[#13C892] border-gray-300 rounded focus:ring-[#13C892]" />
+              <span className="ml-2 text-sm text-gray-600">Remember me</span>
             </label>
             <button
               type="button"
-              onClick={handleForgotPassword}
-              className="text-xs text-[#13C892] hover:underline font-medium cursor-pointer"
+              onClick={() => navigate("/forget-password")}
+              className="text-sm text-[#13C892] hover:underline font-medium"
             >
               Forgot Password?
             </button>
           </div>
+
           <button
             type="submit"
-            className="w-full bg-[#13C892] text-white font-semibold py-2.5 rounded-full hover:bg-[#10b981] transition text-sm shadow-lg hover:shadow-xl cursor-pointer"
+            disabled={loading}
+            className="w-full bg-[#13C892] text-white font-semibold py-3 rounded-lg hover:bg-[#10b981] transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Sign In
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              "Sign In"
+            )}
           </button>
         </form>
 
-        {/* Footer */}
-        <div className="mt-4 text-center">
-          <p className="text-xs text-gray-600">
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600">
             Don't have an account?{" "}
             <button
-              type="button"
-              onClick={handleCreateAccount}
-              className="text-[#13C892] hover:underline font-medium cursor-pointer"
+              onClick={() => navigate("/signup")}
+              className="text-[#13C892] hover:underline font-medium"
             >
               Create one
             </button>
@@ -146,4 +145,5 @@ const Login = () => {
     </div>
   );
 };
+
 export default Login;

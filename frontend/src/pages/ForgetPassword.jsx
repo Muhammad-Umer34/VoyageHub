@@ -1,188 +1,115 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SendForgetPasswordEmail } from "../api/auth";
+import { Mail, AlertCircle, Loader2, CheckCircle, ArrowLeft } from "lucide-react";
 
 const ForgetPassword = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
-  const [isEmailSent, setIsEmailSent] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSendEmail = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!email) {
-      alert("Please enter your email address");
-      return;
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await SendForgetPasswordEmail(email);
+      if (response.status === 200) {
+        setSuccess(true);
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.detail || "Failed to send reset link. Please try again.";
+      setError(errorMsg);
+      console.error("Forgot password error:", err);
+    } finally {
+      setLoading(false);
     }
-
-    setIsLoading(true);
-    
-    // Simulate API call
-    console.log("Sending reset email to:", email);
-    
-    // Simulate API delay
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsEmailSent(true);
-      console.log("Password reset email sent successfully");
-      const response = SendForgetPasswordEmail(email);
-      console.log(response);
-    }, 1500);
   };
 
-  const handleBackToLogin = () => {
-    console.log("Back to login clicked");
-    navigate("/login");
-  };
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-100 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+            <CheckCircle className="w-8 h-8 text-green-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">Check Your Email</h1>
+          <p className="text-gray-600 mb-6">
+            We've sent a password reset link to <strong>{email}</strong>
+          </p>
+          <button
+            onClick={() => navigate("/login")}
+            className="w-full bg-[#13C892] text-white font-semibold py-3 rounded-lg hover:bg-[#10b981] transition"
+          >
+            Back to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white py-32">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-100 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#13C892]/10 rounded-full mb-4">
+            <Mail className="w-8 h-8 text-[#13C892]" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Forgot Password?</h1>
+          <p className="text-gray-600">Enter your email to receive a reset link</p>
+        </div>
 
-      {/* Forget Password Form */}
-      <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
-        {!isEmailSent ? (
-          <>
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-[#13C892]/10 rounded-full mb-3">
-                <svg
-                  className="w-6 h-6 text-[#13C892]"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                  />
-                </svg>
-              </div>
-              <h1 className="text-3xl font-bold text-[#13C892] mb-2">
-                Forgot Password?
-              </h1>
-              <p className="text-gray-600 text-xs">
-                No worries! Enter your email address and we'll send you a link to reset your password.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#13C892] focus:border-transparent focus:outline-none transition"
-                  required
-                />
-              </div>
-
-              <button
-                onClick={handleSendEmail}
-                disabled={isLoading}
-                className={`w-full bg-[#13C892] text-white font-semibold py-2.5 rounded-full transition text-sm shadow-lg cursor-pointer ${
-                  isLoading
-                    ? "opacity-70 cursor-not-allowed"
-                    : "hover:bg-[#10b981] hover:shadow-xl"
-                }`}
-              >
-                {isLoading ? (
-                  <span className="flex items-center justify-center">
-                    <svg
-                      className="animate-spin h-4 w-4 mr-2"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        fill="none"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                    Sending...
-                  </span>
-                ) : (
-                  "Send Reset Link"
-                )}
-              </button>
-
-              <button
-                onClick={handleBackToLogin}
-                className="w-full text-[#13C892] font-medium py-2.5 rounded-full hover:bg-[#13C892]/5 transition text-xs cursor-pointer"
-              >
-                ← Back to Login
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-3">
-                <svg
-                  className="w-6 h-6 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76"
-                  />
-                </svg>
-              </div>
-              <h1 className="text-3xl font-bold text-[#13C892] mb-2">
-                Check Your Email
-              </h1>
-              <p className="text-gray-600 text-xs mb-1">
-                We've sent a password reset link to
-              </p>
-              <p className="font-semibold text-[#13C892] text-sm mb-3">{email}</p>
-              <p className="text-gray-500 text-xs">
-                Please check your inbox and click on the link to reset your password. 
-                If you don't see it, check your spam folder.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <button
-                onClick={handleBackToLogin}
-                className="w-full bg-[#13C892] text-white font-semibold py-2.5 rounded-full hover:bg-[#10b981] transition text-sm shadow-lg hover:shadow-xl cursor-pointer"
-              >
-                Back to Login
-              </button>
-
-              <div className="text-center pt-2">
-                <p className="text-gray-600 text-xs">
-                  Didn't receive the email?{" "}
-                  <button
-                    onClick={() => {
-                      setIsEmailSent(false);
-                      setEmail("");
-                    }}
-                    className="text-[#13C892] hover:underline font-medium cursor-pointer"
-                  >
-                    Try Again
-                  </button>
-                </p>
-              </div>
-            </div>
-          </>
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-red-800">{error}</p>
+          </div>
         )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#13C892] focus:border-transparent outline-none transition"
+                placeholder="you@example.com"
+                required
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#13C892] text-white font-semibold py-3 rounded-lg hover:bg-[#10b981] transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              "Send Reset Link"
+            )}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => navigate("/login")}
+            className="text-sm text-[#13C892] hover:underline font-medium flex items-center gap-1 mx-auto"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Login
+          </button>
+        </div>
       </div>
     </div>
   );

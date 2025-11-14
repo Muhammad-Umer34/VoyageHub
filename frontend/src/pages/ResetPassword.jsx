@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { VerifyForgetPassword, ResetPassword } from "../api/auth";
+import { Lock, Eye, EyeOff, AlertCircle, Loader2, CheckCircle } from "lucide-react";
 
 const ResetPasswordPage = () => {
   const navigate = useNavigate();
@@ -8,6 +9,8 @@ const ResetPasswordPage = () => {
   const [token, setToken] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isVerifying, setIsVerifying] = useState(true);
   const [isTokenValid, setIsTokenValid] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +30,6 @@ const ResetPasswordPage = () => {
       setToken(tokenFromUrl);
 
       try {
-        // Verify token with backend
         console.log("Verifying token:", tokenFromUrl);
         const response = await VerifyForgetPassword({ token: tokenFromUrl });
         
@@ -40,7 +42,7 @@ const ResetPasswordPage = () => {
         }
       } catch (error) {
         setIsVerifying(false);
-        setErrorMessage("An error occurred while verifying the token. Please try again.");
+        setErrorMessage(error.response?.data?.detail || "An error occurred while verifying the token. Please try again.");
         console.error("Token verification error:", error);
       }
     };
@@ -51,15 +53,13 @@ const ResetPasswordPage = () => {
   const handleResetPassword = async (e) => {
     e.preventDefault();
 
-    // Validate passwords match
     if (password !== confirmPassword) {
       setErrorMessage("Passwords do not match");
       return;
     }
 
-    // Validate password length
-    if (password.length < 6) {
-      setErrorMessage("Password must be at least 6 characters long");
+    if (password.length < 8) {
+      setErrorMessage("Password must be at least 8 characters long");
       return;
     }
 
@@ -76,7 +76,6 @@ const ResetPasswordPage = () => {
         setIsSuccess(true);
         console.log("Password reset successful");
         
-        // Redirect to login after 3 seconds
         setTimeout(() => {
           navigate("/login");
         }, 3000);
@@ -84,7 +83,7 @@ const ResetPasswordPage = () => {
         setErrorMessage("Failed to reset password. Please try again.");
       }
     } catch (error) {
-      setErrorMessage("An error occurred while resetting password. Please try again.");
+      setErrorMessage(error.response?.data?.detail || "An error occurred while resetting password. Please try again.");
       console.error("Password reset error:", error);
     } finally {
       setIsLoading(false);
@@ -96,36 +95,18 @@ const ResetPasswordPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white py-32">
-      <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-100 py-12 px-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
         {/* Verifying Token */}
         {isVerifying && (
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 bg-[#13C892]/10 rounded-full mb-3">
-              <svg
-                className="animate-spin h-6 w-6 text-[#13C892]"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="none"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-[#13C892]/10 rounded-full mb-4">
+              <Loader2 className="w-8 h-8 text-[#13C892] animate-spin" />
             </div>
             <h1 className="text-2xl font-bold text-gray-800 mb-2">
               Verifying Token...
             </h1>
-            <p className="text-gray-600 text-xs">
+            <p className="text-gray-600 text-sm">
               Please wait while we verify your reset link
             </p>
           </div>
@@ -134,28 +115,16 @@ const ResetPasswordPage = () => {
         {/* Invalid Token */}
         {!isVerifying && !isTokenValid && (
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mb-3">
-              <svg
-                className="w-6 h-6 text-red-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+              <AlertCircle className="w-8 h-8 text-red-600" />
             </div>
             <h1 className="text-2xl font-bold text-red-600 mb-2">
               Invalid Token
             </h1>
-            <p className="text-gray-600 text-xs mb-4">{errorMessage}</p>
+            <p className="text-gray-600 text-sm mb-6">{errorMessage}</p>
             <button
               onClick={handleBackToLogin}
-              className="w-full bg-[#13C892] text-white font-semibold py-2.5 rounded-full hover:bg-[#10b981] transition text-sm shadow-lg hover:shadow-xl cursor-pointer"
+              className="w-full bg-[#13C892] text-white font-semibold py-3 rounded-lg hover:bg-[#10b981] transition shadow-lg hover:shadow-xl"
             >
               Back to Login
             </button>
@@ -165,30 +134,18 @@ const ResetPasswordPage = () => {
         {/* Success Message */}
         {isSuccess && (
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-3">
-              <svg
-                className="w-6 h-6 text-green-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+              <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
             <h1 className="text-2xl font-bold text-green-600 mb-2">
               Password Reset Successful!
             </h1>
-            <p className="text-gray-600 text-xs mb-4">
+            <p className="text-gray-600 text-sm mb-6">
               Your password has been successfully reset. You will be redirected to the login page in a few seconds.
             </p>
             <button
               onClick={handleBackToLogin}
-              className="w-full bg-[#13C892] text-white font-semibold py-2.5 rounded-full hover:bg-[#10b981] transition text-sm shadow-lg hover:shadow-xl cursor-pointer"
+              className="w-full bg-[#13C892] text-white font-semibold py-3 rounded-lg hover:bg-[#10b981] transition shadow-lg hover:shadow-xl"
             >
               Go to Login
             </button>
@@ -199,108 +156,100 @@ const ResetPasswordPage = () => {
         {!isVerifying && isTokenValid && !isSuccess && (
           <>
             <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-[#13C892]/10 rounded-full mb-3">
-                <svg
-                  className="w-6 h-6 text-[#13C892]"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-                  />
-                </svg>
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-[#13C892]/10 rounded-full mb-4">
+                <Lock className="w-8 h-8 text-[#13C892]" />
               </div>
               <h1 className="text-3xl font-bold text-[#13C892] mb-2">
                 Reset Password
               </h1>
-              <p className="text-gray-600 text-xs">
+              <p className="text-gray-600 text-sm">
                 Enter your new password below
               </p>
             </div>
 
             {errorMessage && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg mb-3 text-xs">
-                {errorMessage}
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-800">{errorMessage}</p>
               </div>
             )}
 
-            <div className="space-y-3">
+            <form onSubmit={handleResetPassword} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   New Password
                 </label>
-                <input
-                  type="password"
-                  placeholder="Enter new password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#13C892] focus:border-transparent focus:outline-none transition"
-                  required
-                />
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter new password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#13C892] focus:border-transparent outline-none transition"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Confirm Password
                 </label>
-                <input
-                  type="password"
-                  placeholder="Confirm new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#13C892] focus:border-transparent focus:outline-none transition"
-                  required
-                />
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#13C892] focus:border-transparent outline-none transition"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
 
               <button
-                onClick={handleResetPassword}
+                type="submit"
                 disabled={isLoading}
-                className={`w-full bg-[#13C892] text-white font-semibold py-2.5 rounded-full transition text-sm shadow-lg cursor-pointer ${
+                className={`w-full bg-[#13C892] text-white font-semibold py-3 rounded-lg transition shadow-lg flex items-center justify-center gap-2 ${
                   isLoading
                     ? "opacity-70 cursor-not-allowed"
                     : "hover:bg-[#10b981] hover:shadow-xl"
                 }`}
               >
                 {isLoading ? (
-                  <span className="flex items-center justify-center">
-                    <svg
-                      className="animate-spin h-4 w-4 mr-2"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        fill="none"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
                     Resetting Password...
-                  </span>
+                  </>
                 ) : (
                   "Reset Password"
                 )}
               </button>
 
               <button
+                type="button"
                 onClick={handleBackToLogin}
-                className="w-full text-[#13C892] font-medium py-2.5 rounded-full hover:bg-[#13C892]/5 transition text-xs cursor-pointer"
+                className="w-full text-[#13C892] font-medium py-3 rounded-lg hover:bg-[#13C892]/5 transition text-sm"
               >
                 ← Back to Login
               </button>
-            </div>
+            </form>
           </>
         )}
       </div>

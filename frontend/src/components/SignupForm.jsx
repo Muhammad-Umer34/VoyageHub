@@ -1,190 +1,210 @@
 import { useState } from "react";
-import Divider from "@mui/material/Divider";
+import { useNavigate } from "react-router-dom";
 import { SignupApi } from "../api/auth";
-import { VerifyEmail } from "../api/auth";
+import { User, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, Check, X } from "lucide-react";
+
+const PasswordStrength = ({ password }) => {
+  const checks = {
+    minLength: password.length >= 8,
+    hasUpperCase: /[A-Z]/.test(password),
+    hasLowerCase: /[a-z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+    hasSpecial: /[!@#$%^&*]/.test(password),
+  };
+
+  const requirements = [
+    { key: 'minLength', label: 'At least 8 characters' },
+    { key: 'hasUpperCase', label: 'One uppercase letter' },
+    { key: 'hasLowerCase', label: 'One lowercase letter' },
+    { key: 'hasNumber', label: 'One number' },
+    { key: 'hasSpecial', label: 'One special character' },
+  ];
+
+  if (!password) return null;
+
+  return (
+    <div className="mt-3 space-y-2">
+      {requirements.map(({ key, label }) => (
+        <div key={key} className="flex items-center gap-2 text-xs">
+          {checks[key] ? (
+            <Check className="w-4 h-4 text-green-600" />
+          ) : (
+            <X className="w-4 h-4 text-gray-400" />
+          )}
+          <span className={checks[key] ? 'text-green-600' : 'text-gray-500'}>
+            {label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const SignupForm = () => {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [code, setCode] = useState("");
-  const [displayForm, setDisplayForm] = useState(true);
-  
-  const handleVerifyEmail =async (e) => {
-    e.preventDefault();
-    const formdata = {
-      email: email,
-      code: code,
-    };
-    console.log("Verifying email with:", formdata);
-     const response = await VerifyEmail(formdata);
-    if(response.status === 200){
-     console.log("Sucessfully verified")
-     }
-  };
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const formData = {
-      firstName,
-      lastName,
-      email,
-      password,
-      confirmPassword,
-    };
-    const data_to_send = {
-      email: email,
-      password: password,
-      full_name: firstName + " " + lastName,
-    };
-    console.log("Form Data:", formData);
-    console.log("Data sent to backend:", data_to_send);
-    // Simulating API call
-    const response = await SignupApi(data_to_send);
-    if(response.status === 200){
-    setDisplayForm(false);
-     }
+    setError("");
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { confirmPassword, ...signupData } = formData;
+      const response = await SignupApi(signupData);
+      
+      if (response.status === 200 || response.status === 201) {
+        console.log("Signup successful");
+        navigate("/verify-email", { state: { email: formData.email } });
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.detail || "Signup failed. Please try again.";
+      setError(errorMsg);
+      console.error("Signup error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleResendCode = () => {
-    console.log("Resend code clicked");
-    // No action as per requirements
-  };
-
-  return displayForm ? (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white px-6 py-10">
-      <div className="bg-white/95 rounded-xl w-full max-w-md p-8">
-        <h1 className="text-3xl font-semibold text-center text-[#13C892] mb-6">
-          Create New Account
-        </h1>
-
-        <div className="flex flex-col gap-6 mb-8">
-          <button className="relative flex items-center justify-center bg-white border border-gray-300 rounded-full py-4 px-6 hover:bg-gray-50 transition">
-            <svg className="w-6 h-6 absolute left-6" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-            </svg>
-            <span className="font-medium text-gray-700 text-lg">
-              Sign up with Google
-            </span>
-          </button>
-          <button className="relative flex items-center justify-center bg-white border border-gray-300 rounded-full py-4 px-6 hover:bg-gray-50 transition">
-            <svg className="w-6 h-6 absolute left-6" viewBox="0 0 24 24" fill="#1877F2">
-              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-            </svg>
-            <span className="font-medium text-gray-700 text-lg">
-              Sign up with Facebook
-            </span>
-          </button>
+  return (
+    <div className="w-full max-w-md p-8">
+      <div className="text-center mb-6">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-[#13C892]/10 rounded-full mb-4">
+          <User className="w-8 h-8 text-[#13C892]" />
         </div>
+        <h1 className="text-3xl font-bold text-[#13C892] mb-2">Create Account</h1>
+        <p className="text-gray-600">Sign up to get started</p>
+      </div>
 
-        <div className="flex items-center gap-2 mb-6">
-          <div className="flex-1 border-t border-gray-300"></div>
-          <span className="text-sm text-gray-500">OR</span>
-          <div className="flex-1 border-t border-gray-300"></div>
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-red-800">{error}</p>
         </div>
+      )}
 
-        <div className="space-y-4">
-          <div className="flex gap-3">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="First Name"
+              value={formData.username}
+              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#13C892] focus:border-transparent outline-none transition"
+              placeholder="johndoe"
               required
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              className="w-1/2 border border-gray-300 rounded-md px-3 py-3 text-lg focus:ring-2 focus:ring-[#13C892] focus:outline-none"
-            />
-            <input
-              type="text"
-              placeholder="Last Name"
-              required
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              className="w-1/2 border border-gray-300 rounded-md px-3 py-3 text-lg focus:ring-2 focus:ring-[#13C892] focus:outline-none"
             />
           </div>
-
-          <input
-            type="email"
-            placeholder="Email address"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-3 text-lg focus:ring-2 focus:ring-[#13C892] focus:outline-none"
-          />
-
-          <input
-            type="password"
-            placeholder="Password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-3 text-lg focus:ring-2 focus:ring-[#13C892] focus:outline-none"
-          />
-
-          <input
-            type="password"
-            placeholder="Confirm Password"
-            required
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-3 text-lg focus:ring-2 focus:ring-[#13C892] focus:outline-none"
-          />
-
-          <button
-            onClick={handleSubmit}
-            className="w-full bg-[#13C892] text-white font-semibold py-3 rounded-full hover:bg-[#10b981] transition text-lg cursor-pointer"
-          >
-            Create Account
-          </button>
-        </div>
-      </div>
-    </div>
-  ) : (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white px-6 py-10">
-      <div className="bg-white/95 rounded-xl w-full max-w-md p-8">
-        <h1 className="text-3xl font-semibold text-center text-[#13C892] mb-6">
-          Verify Your Email
-        </h1>
-
-        <p className="text-center text-gray-600 mb-8">
-          We've sent a verification code to <strong>{email}</strong>
-        </p>
-
-        <div className="space-y-4">
-          <input
-            type="text"
-            placeholder="Enter verification code"
-            required
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-3 text-lg text-center tracking-widest focus:ring-2 focus:ring-[#13C892] focus:outline-none"
-            maxLength={6}
-          />
-
-          <button
-            onClick={handleVerifyEmail}
-            className="w-full bg-[#13C892] text-white font-semibold py-3 rounded-full hover:bg-[#10b981] transition text-lg cursor-pointer"
-          >
-            Verify Email
-          </button>
         </div>
 
-        <div className="text-center mt-6">
-          <p className="text-gray-600 text-sm">
-            Didn't receive the code?{" "}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#13C892] focus:border-transparent outline-none transition"
+              placeholder="you@example.com"
+              required
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type={showPassword ? "text" : "password"}
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#13C892] focus:border-transparent outline-none transition"
+              placeholder="••••••••"
+              required
+            />
             <button
-              onClick={handleResendCode}
-              className="text-[#13C892] hover:underline font-medium"
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
             >
-              Resend Code
+              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
-          </p>
+          </div>
+          <PasswordStrength password={formData.password} />
         </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              value={formData.confirmPassword}
+              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#13C892] focus:border-transparent outline-none transition"
+              placeholder="••••••••"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-[#13C892] text-white font-semibold py-3 rounded-lg hover:bg-[#10b981] transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Creating account...
+            </>
+          ) : (
+            "Create Account"
+          )}
+        </button>
+      </form>
+
+      <div className="mt-6 text-center">
+        <p className="text-sm text-gray-600">
+          Already have an account?{" "}
+          <button
+            onClick={() => navigate("/login")}
+            className="text-[#13C892] hover:underline font-medium"
+          >
+            Sign in
+          </button>
+        </p>
       </div>
     </div>
   );
