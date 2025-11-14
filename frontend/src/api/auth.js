@@ -1,6 +1,7 @@
 import axios from "axios";
 
 const API_URL = "http://localhost:8000/auth/";
+axios.defaults.withCredentials = true;
 
 export const SignupApi = (userData) => {
   return axios.post(`${API_URL}register`, userData);
@@ -34,3 +35,8 @@ export const VerifyForgetPassword = (token)=>{
 export const ResetPassword = (userData)=>{
   return axios.post(`${API_URL}reset-password`,userData);
 }
+
+export const ResendVerificationCode = (email)=>{
+  return axios.post(`${API_URL}resend-code`, {email});
+}
+

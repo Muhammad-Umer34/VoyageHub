@@ -1,32 +1,21 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Divider from "@mui/material/Divider";
 import { SignupApi } from "../api/auth";
-import { VerifyEmail } from "../api/auth";
 
 const SignupForm = () => {
+  const navigate = useNavigate();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [code, setCode] = useState("");
-  const [displayForm, setDisplayForm] = useState(true);
-  
-  const handleVerifyEmail =async (e) => {
-    e.preventDefault();
-    const formdata = {
-      email: email,
-      code: code,
-    };
-    console.log("Verifying email with:", formdata);
-     const response = await VerifyEmail(formdata);
-    if(response.status === 200){
-     console.log("Sucessfully verified")
-     }
-  };
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    
     const formData = {
       firstName,
       lastName,
@@ -41,19 +30,36 @@ const SignupForm = () => {
     };
     console.log("Form Data:", formData);
     console.log("Data sent to backend:", data_to_send);
-    // Simulating API call
-    const response = await SignupApi(data_to_send);
-    if(response.status === 200){
-    setDisplayForm(false);
-     }
+    
+    try {
+      const response = await SignupApi(data_to_send);
+      if(response.status === 200){
+        // Navigate to verify email page and pass email as state
+        navigate("/verify-email", { state: { email: email } });
+      }
+    } catch (err) {
+      // Axios throws errors for non-2xx status codes
+      if (err.response) {
+        // The request was made and the server responded with a status code
+        if (err.response.status === 400) {
+          setError("This email is already registered. Please use a different email or login.");
+        } else if (err.response.status === 500) {
+          setError("Server error. Please try again later.");
+        } else {
+          setError("An error occurred. Please try again.");
+        }
+      } else if (err.request) {
+        // The request was made but no response was received
+        setError("No response from server. Please check your connection.");
+      } else {
+        // Something happened in setting up the request
+        setError("An unexpected error occurred. Please try again.");
+      }
+      console.error("Signup error:", err);
+    }
   };
 
-  const handleResendCode = () => {
-    console.log("Resend code clicked");
-    // No action as per requirements
-  };
-
-  return displayForm ? (
+  return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-white px-6 py-10">
       <div className="bg-white/95 rounded-xl w-full max-w-md p-8">
         <h1 className="text-3xl font-semibold text-center text-[#13C892] mb-6">
@@ -87,6 +93,12 @@ const SignupForm = () => {
           <span className="text-sm text-gray-500">OR</span>
           <div className="flex-1 border-t border-gray-300"></div>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-600 text-sm">{error}</p>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div className="flex gap-3">
@@ -142,46 +154,15 @@ const SignupForm = () => {
             Create Account
           </button>
         </div>
-      </div>
-    </div>
-  ) : (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white px-6 py-10">
-      <div className="bg-white/95 rounded-xl w-full max-w-md p-8">
-        <h1 className="text-3xl font-semibold text-center text-[#13C892] mb-6">
-          Verify Your Email
-        </h1>
-
-        <p className="text-center text-gray-600 mb-8">
-          We've sent a verification code to <strong>{email}</strong>
-        </p>
-
-        <div className="space-y-4">
-          <input
-            type="text"
-            placeholder="Enter verification code"
-            required
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-3 text-lg text-center tracking-widest focus:ring-2 focus:ring-[#13C892] focus:outline-none"
-            maxLength={6}
-          />
-
-          <button
-            onClick={handleVerifyEmail}
-            className="w-full bg-[#13C892] text-white font-semibold py-3 rounded-full hover:bg-[#10b981] transition text-lg cursor-pointer"
-          >
-            Verify Email
-          </button>
-        </div>
 
         <div className="text-center mt-6">
           <p className="text-gray-600 text-sm">
-            Didn't receive the code?{" "}
+            Already have an account?{" "}
             <button
-              onClick={handleResendCode}
+              onClick={() => navigate("/login")}
               className="text-[#13C892] hover:underline font-medium"
             >
-              Resend Code
+              Login
             </button>
           </p>
         </div>

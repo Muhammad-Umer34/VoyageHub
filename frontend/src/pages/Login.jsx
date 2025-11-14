@@ -10,27 +10,57 @@ const Login = () => {
   const navigate = useNavigate();
   const [email, setemail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
+
     const loginData = {
       email,
       password,
     };
     console.log("Login data:", loginData);
-    const response = await LoginApi(loginData);
-    if (response.status === 200) {
-      console.log("Login successful");
+
+    try {
+      const response = await LoginApi(loginData);
+      if (response.status === 200) {
+        console.log("Login successful");
+        navigate("/dashboard");
+      }
+    } catch (err) {
+      if (err.response) {
+        if (err.response.status === 401) {
+          setError("Invalid email or password. Please try again.");
+        } else if (err.response.status === 403) {
+          setError("Email not verified. Redirecting to verification page...");
+          setTimeout(() => {
+            navigate("/verify-email", { state: { email: email } });
+          }, 2000);
+        } else if (err.response.status === 500) {
+          setError("Server error. Please try again later.");
+        } else {
+          setError("An error occurred. Please try again.");
+        }
+      } else if (err.request) {
+        setError("No response from server. Please check your connection.");
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
+      console.error("Login error:", err);
     }
-    console.log(response);
   };
+
   const handleForgotPassword = () => {
     console.log("Forgot password clicked");
     navigate("/forget-password");
   };
+
   const handleCreateAccount = () => {
     console.log("Create account clicked");
     navigate("/signup");
   };
+
   return (
     <div
       className="flex items-center justify-center bg-cover bg-center bg-no-repeat relative py-32"
@@ -77,6 +107,13 @@ const Login = () => {
           <span className="text-xs text-gray-500">OR</span>
           <Divider className="flex-1" />
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-600 text-sm">{error}</p>
+          </div>
+        )}
 
         <form className="space-y-3" onSubmit={handleLogin}>
           <div>
@@ -146,4 +183,5 @@ const Login = () => {
     </div>
   );
 };
+
 export default Login;
