@@ -17,8 +17,11 @@ def get_user_by_email(db: Session, email: str):
 
 def create_user(db: Session, user, hashed_password, verification_code, code_expiry):
     try:
+        username = user.email.split('@')[0]
+
         db_user = User(
             email=user.email,
+            username=username,        
             full_name=user.full_name,
             hashed_password=hashed_password,
             verification_code=verification_code,
@@ -31,8 +34,9 @@ def create_user(db: Session, user, hashed_password, verification_code, code_expi
         return db_user
     except Exception as e:
         logger.error(f"Error creating user {user.email}: {e}")
-        db.rollback()  
+        db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error")
+
 
 
 def create_itinerary(db:Session, itinerary_data, owner_id: int):

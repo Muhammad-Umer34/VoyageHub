@@ -12,8 +12,10 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
+    username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, nullable=True)
+    profile_photo = Column(String, nullable=False, default="https://res.cloudinary.com/dbslrfquo/image/upload/v1763120927/pde6iyl46pvyfkbmmi50.png")
     is_verified = Column(Boolean, default=False)
     verification_code = Column(String, nullable=True)
     code_expiry = Column(DateTime, nullable=True)
