@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Response, Cookie
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from database import engine, Base, get_db
@@ -12,17 +12,20 @@ from datetime import datetime, timedelta
 import random
 from auth.send_emails import send_verification_email
 from auth.forget_password import create_forget_password_token, verify_forget_password_token
-from fastapi import Cookie
 from auth.send_forget_password_email import send_forget_password_email
-from fastapi import Response
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Itinerary Planner API")
 
+# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://frontend:5173",  # Docker service name
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,15 +35,23 @@ app.add_middleware(
 async def test():
     return {"status": "ok"}
 
+# ============= REGISTER =============
 @app.post("/auth/register")
 def register(
     user: schemas.UserCreate,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    existing = crud.get_user_by_email(db, user.email)
-    if existing:
+    # Check if email already exists
+    existing_email = crud.get_user_by_email(db, user.email)
+    if existing_email:
         raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Check if username already exists
+    existing_username = crud.get_user_by_username(db, user.username)
+    if existing_username:
+        raise HTTPException(status_code=400, detail="Username already taken")
+    
     hashed = hash_password(user.password)
     verification_code = str(random.randint(100000, 999999))
     expiry_time = datetime.utcnow() + timedelta(minutes=10)
@@ -57,6 +68,7 @@ def register(
 
     return {"message": "User registered. Verification code sent to your email."}
 
+# ============= EMAIL VERIFICATION =============
 class EmailVerificationRequest(BaseModel):
     email: str
     code: str
@@ -83,6 +95,7 @@ def verify_email(request: EmailVerificationRequest, db: Session = Depends(get_db
     db.refresh(user)
     return {"message": "Email verified successfully!"}
 
+# ============= RESEND VERIFICATION CODE =============
 class ResendCodeRequest(BaseModel):
     email: str
 
@@ -110,8 +123,7 @@ def resend_code(
     background_tasks.add_task(send_verification_email, user.email, new_code)
     return {"message": "A new verification code has been sent to your email."}
 
-
-
+# ============= LOGIN =============
 @app.post("/auth/token")
 def login_for_access_token(
     response: Response,
@@ -147,9 +159,12 @@ def login_for_access_token(
         path="/"
     )
 
-    return {"message": "Login successful"}
+    return {
+        "message": "Login successful",
+        "access_token": access_token
+    }
 
-
+# ============= FORGET PASSWORD =============
 class ForgetPasswordRequest(BaseModel):
     email: str
 
@@ -170,7 +185,7 @@ def forget_password(
 
     return {"message": "Password reset email sent successfully."}
 
-
+# ============= VERIFY FORGET PASSWORD TOKEN =============
 class VerifyForgetPasswordRequest(BaseModel):
     token: str
 
@@ -182,7 +197,7 @@ def verify_forget_password(request: VerifyForgetPasswordRequest):
 
     return {"message": "Token is valid", "email": payload["sub"]}
 
-
+# ============= RESET PASSWORD =============
 class PasswordResetRequest(BaseModel):
     token: str
     new_password: str
@@ -203,12 +218,8 @@ def reset_password(request: PasswordResetRequest, db: Session = Depends(get_db))
     db.refresh(user)
 
     return {"message": "Password has been reset successfully."}
-  
 
-class TokenRefreshRequest(BaseModel):
-    refresh_token: str
-
-
+# ============= REFRESH TOKEN =============
 @app.post("/auth/refresh")
 def refresh_access_token(
     response: Response,
@@ -217,7 +228,7 @@ def refresh_access_token(
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Refresh token missing")
 
-    payload = verify_token(refresh_token, token_type="refresh")
+    payload = verify_token(refresh_token, expected_type="refresh")
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
@@ -235,8 +246,7 @@ def refresh_access_token(
 
     return {"message": "Access token refreshed"}
 
-
-
+# ============= PROTECTED ROUTES =============
 @app.get("/me", response_model=schemas.UserOut)
 def read_me(current_user=Depends(get_current_user)):
     return current_user
@@ -244,35 +254,3 @@ def read_me(current_user=Depends(get_current_user)):
 @app.get("/protected", response_model=schemas.UserOut)
 def protected_route(current_user=Depends(get_current_user)):
     return current_user
-
-@app.post("/auth/register")
-def register(
-    user: schemas.UserCreate,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
-):
-    # Check if email already exists
-    existing_email = crud.get_user_by_email(db, user.email)
-    if existing_email:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    # ✅ ADD: Check if username already exists
-    existing_username = crud.get_user_by_username(db, user.username)
-    if existing_username:
-        raise HTTPException(status_code=400, detail="Username already taken")
-    
-    hashed = hash_password(user.password)
-    verification_code = str(random.randint(100000, 999999))
-    expiry_time = datetime.utcnow() + timedelta(minutes=10)
-
-    db_user = crud.create_user(
-        db,
-        user=user,
-        hashed_password=hashed,
-        verification_code=verification_code,
-        code_expiry=expiry_time
-    )
-
-    background_tasks.add_task(send_verification_email, user.email, verification_code)
-
-    return {"message": "User registered. Verification code sent to your email."}

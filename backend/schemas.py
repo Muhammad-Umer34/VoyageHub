@@ -2,16 +2,16 @@ from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import Optional
 
 class UserCreate(BaseModel):
-    username: str  # ✅ ADD THIS
+    username: str
     email: EmailStr
     password: str
-    full_name: str
+    full_name: Optional[str] = None  # ✅ Make optional - will use username if not provided
 
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
     id: int
-    username: str  # ✅ ADD THIS
+    username: str
     email: EmailStr
     full_name: Optional[str] = None
 
@@ -20,5 +20,5 @@ class Token(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
 
-class EmailVerification(BaseModel):  # ✅ Fixed capitalization
+class EmailVerification(BaseModel):
     message: str

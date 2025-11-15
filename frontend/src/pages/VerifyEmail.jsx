@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { VerifyEmail } from "../api/auth";
+import { VerifyEmail, ResendVerificationCode } from "../api/auth";
 import { Mail, AlertCircle, Loader2, CheckCircle } from "lucide-react";
 
 const VerifyEmailForm = () => {
@@ -11,7 +11,9 @@ const VerifyEmailForm = () => {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
 
   const handleVerifyEmail = async (e) => {
     e.preventDefault();
@@ -53,9 +55,26 @@ const VerifyEmailForm = () => {
   };
 
   const handleResendCode = async () => {
-    console.log("Resend code clicked");
-    // TODO: Implement resend code API call when backend is ready
-    setError("Resend feature coming soon!");
+    if (!email) {
+      setError("Email not found. Please go back to signup.");
+      return;
+    }
+
+    setResendLoading(true);
+    setError("");
+    setResendMessage("");
+    
+    try {
+      const response = await ResendVerificationCode(email);
+      if (response.status === 200) {
+        setResendMessage("A new verification code has been sent to your email!");
+        setCode(""); // Clear the input
+      }
+    } catch (err) {
+      setError(err.response?.data?.detail || "Failed to resend code. Please try again.");
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   if (success) {
@@ -97,6 +116,13 @@ const VerifyEmailForm = () => {
           </div>
         )}
 
+        {resendMessage && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2">
+            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-green-800">{resendMessage}</p>
+          </div>
+        )}
+
         <form onSubmit={handleVerifyEmail} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
@@ -134,9 +160,10 @@ const VerifyEmailForm = () => {
             Didn't receive the code?{" "}
             <button
               onClick={handleResendCode}
-              className="text-[#13C892] hover:underline font-medium"
+              disabled={resendLoading}
+              className="text-[#13C892] hover:underline font-medium disabled:opacity-50"
             >
-              Resend Code
+              {resendLoading ? "Sending..." : "Resend Code"}
             </button>
           </p>
         </div>
