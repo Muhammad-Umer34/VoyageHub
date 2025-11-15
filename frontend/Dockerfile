@@ -1,19 +1,22 @@
-# Use a lightweight Node image
 FROM node:20-alpine
+
+# Install dependencies required for native modules
+RUN apk add --no-cache python3 make g++
 
 WORKDIR /app
 
-# Copy dependency files first for caching
+# Copy package files
 COPY package*.json ./
 
-# Install dependencies
+# Clean install with all optional dependencies
+RUN rm -rf node_modules package-lock.json
 RUN npm install
 
-# Copy the rest of your app
+# Copy source code
 COPY . .
 
 # Expose port
 EXPOSE 5173
 
-# Run dev server
-CMD ["npm", "run", "dev", "--", "--host"]
+# Start dev server
+CMD ["npm", "run", "dev"]
