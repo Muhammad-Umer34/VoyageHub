@@ -116,7 +116,7 @@ def login_for_access_token(
     db: Session = Depends(get_db)
 ):
     user = crud.get_user_by_email(db, email=form_data.username)
-
+    print(f"Login attempt for email: {user}")
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
 
@@ -146,7 +146,15 @@ def login_for_access_token(
         path="/"
     )
 
-    return {"message": "Login successful"}
+    return {
+        "message": "Login successful",
+        "user": {
+            "email": user.email,
+            "username": user.username,
+            "full_name": user.full_name,
+            "profile_photo": user.profile_photo,
+        }
+    }
 
 
 class ForgetPasswordRequest(BaseModel):
@@ -228,6 +236,65 @@ def refresh_access_token(response: Response, refresh_token: str = Cookie(None)):
     )
 
     return {"message": "Access token refreshed"}
+
+
+class UpdateProfilePhotoRequest(BaseModel):
+    profile_photo: str
+
+
+@router.post('/update-profile-photo', response_model=schemas.UserOut)
+def update_profile_photo(
+    request: UpdateProfilePhotoRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+    access_token: str = Cookie(None),
+    refresh_token: str = Cookie(None)
+):
+    user_email = None
+    token_refreshed = False
+    
+    # First, try to verify access token
+    if access_token:
+        payload = verify_token(access_token, token_type="access")
+        if payload:
+            user_email = payload.get("sub")
+    
+    # If access token is invalid/expired, try refresh token
+    if not user_email and refresh_token:
+        refresh_payload = verify_token(refresh_token, token_type="refresh")
+        if refresh_payload:
+            user_email = refresh_payload.get("sub")
+            # Generate new access token
+            new_access_token = create_access_token({"sub": user_email})
+            response.set_cookie(
+                key="access_token",
+                value=new_access_token,
+                httponly=True,
+                max_age=900,
+                samesite="lax",
+                secure=False,
+                path="/"
+            )
+            token_refreshed = True
+        else:
+            # Refresh token is also invalid
+            raise HTTPException(status_code=401, detail="Invalid or expired refresh token. Please login again.")
+    
+    # If no valid token at all
+    if not user_email:
+        raise HTTPException(status_code=401, detail="Authentication required. Please login.")
+    
+    # Get user from database
+    user = crud.get_user_by_email(db, user_email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update profile photo
+    user.profile_photo = request.profile_photo
+    db.commit()
+    db.refresh(user)
+    
+    return user
 
 
 @router.get("/me", response_model=schemas.UserOut)

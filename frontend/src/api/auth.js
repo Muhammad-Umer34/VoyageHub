@@ -1,6 +1,7 @@
 import axios from "axios";
 
 const API_URL = "http://localhost:8000/auth/";
+const PROTECTED_API_URL = "http://localhost:8000/protected/";
 axios.defaults.withCredentials = true;
 
 export const SignupApi = (userData) => {
@@ -40,3 +41,9 @@ export const ResendVerificationCode = (email)=>{
   return axios.post(`${API_URL}resend-code`, {email});
 }
 
+export const UpdateProfilePhoto = (profilePhotoUrl) => {
+  return axios.post(`${API_URL}update-profile-photo`, 
+    { profile_photo: profilePhotoUrl },
+    { withCredentials: true }
+  );
+}

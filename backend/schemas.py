@@ -9,9 +9,10 @@ class UserCreate(BaseModel):
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
-    id: int
     email: EmailStr
     full_name: Optional[str] = None
+    profile_photo: Optional[str] = None
+    username: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str

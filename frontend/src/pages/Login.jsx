@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Divider from "@mui/material/Divider";
 import bgImage from "../assets/ian-dooley-hpTH5b6mo2s-unsplash.jpg";
 import googleIcon from "../assets/search.png";
 import facebookIcon from "../assets/facebook.png";
 import { useNavigate } from "react-router-dom";
 import { LoginApi } from "../api/auth";
+import { useDispatch, useSelector } from "react-redux";
+import { updateProfile } from "../features/ProfileSlice";
 
 const Login = () => {
+  const dispatch = useDispatch();
+  const profiledata = useSelector((state) => state.profile);
   const navigate = useNavigate();
   const [email, setemail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,7 +29,20 @@ const Login = () => {
     try {
       const response = await LoginApi(loginData);
       if (response.status === 200) {
+        const userProfile = response.data.user;
+        
+        // Dispatch the profile update
+        dispatch(updateProfile({
+          full_name: userProfile.full_name,
+          username: userProfile.username,
+          email: userProfile.email,
+          profile_photo: userProfile.profile_photo,
+        }));
+        
+        console.log("Login response data:", response);
         console.log("Login successful");
+        
+        // Navigate after dispatch
         navigate("/dashboard");
       }
     } catch (err) {
@@ -51,6 +68,10 @@ const Login = () => {
     }
   };
 
+  useEffect(() => {
+    console.log("Profile data in Login:", profiledata);
+  }, [profiledata]);
+  
   const handleForgotPassword = () => {
     console.log("Forgot password clicked");
     navigate("/forget-password");
