@@ -14,6 +14,8 @@ from auth.send_emails import send_verification_email
 from auth.send_forget_password_email import send_forget_password_email
 from auth.forget_password import create_forget_password_token, verify_forget_password_token
 
+
+
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/register")
@@ -109,6 +111,7 @@ def resend_code(
     return {"message": "New code sent to email."}
 
 
+
 @router.post("/token")
 def login_for_access_token(
     response: Response,
@@ -125,12 +128,15 @@ def login_for_access_token(
 
     access_token = create_access_token({"sub": user.email})
     refresh_token = create_refresh_token({"sub": user.email})
+    print(f"Generated tokens for user: {user.email}")
+    print(f"Access Token: {access_token}")
+    print(f"Refresh Token: {refresh_token}")
 
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        max_age=900,
+        max_age=60*60*24,
         samesite="lax",
         secure=False,
         path="/"
@@ -146,6 +152,11 @@ def login_for_access_token(
         path="/"
     )
 
+    set_cookie_headers = response.headers.getlist("set-cookie")
+    print(f"All Set-Cookie headers: {set_cookie_headers}")
+    for header in set_cookie_headers:
+        print(f"Header detail: {header}")
+
     return {
         "message": "Login successful",
         "user": {
@@ -153,6 +164,7 @@ def login_for_access_token(
             "username": user.username,
             "full_name": user.full_name,
             "profile_photo": user.profile_photo,
+            "id": user.id
         }
     }
 
@@ -218,8 +230,11 @@ def reset_password(request: PasswordResetRequest, db: Session = Depends(get_db))
 def refresh_access_token(response: Response, refresh_token: str = Cookie(None)):
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Missing refresh token")
-
-    payload = verify_token(refresh_token, token_type="refresh")
+    try:
+        payload = verify_token(refresh_token)
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
@@ -253,49 +268,53 @@ def update_profile_photo(
     user_email = None
     token_refreshed = False
     
-    # First, try to verify access token
+    print(f"Access Token: {access_token}")
+    print(f"Refresh Token: {refresh_token}")
+    # Try access token first
     if access_token:
-        payload = verify_token(access_token, token_type="access")
-        if payload:
-            user_email = payload.get("sub")
-    
-    # If access token is invalid/expired, try refresh token
+        try:
+            payload = verify_token(access_token)
+            if payload:
+                user_email = payload.get("sub")
+        except Exception:
+            pass 
+
     if not user_email and refresh_token:
-        refresh_payload = verify_token(refresh_token, token_type="refresh")
-        if refresh_payload:
-            user_email = refresh_payload.get("sub")
-            # Generate new access token
-            new_access_token = create_access_token({"sub": user_email})
-            response.set_cookie(
-                key="access_token",
-                value=new_access_token,
-                httponly=True,
-                max_age=900,
-                samesite="lax",
-                secure=False,
-                path="/"
-            )
-            token_refreshed = True
-        else:
-            # Refresh token is also invalid
+        try:
+            refresh_payload = verify_token(refresh_token)
+            if refresh_payload:
+                user_email = refresh_payload.get("sub")
+                new_access_token = create_access_token({"sub": user_email})
+                response.set_cookie(
+                    key="access_token",
+                    value=new_access_token,
+                    httponly=True,
+                    max_age=900,
+                    samesite="lax",
+                    secure=False,
+                    path="/"
+                )
+                token_refreshed = True
+        except Exception:
             raise HTTPException(status_code=401, detail="Invalid or expired refresh token. Please login again.")
     
-    # If no valid token at all
     if not user_email:
         raise HTTPException(status_code=401, detail="Authentication required. Please login.")
     
-    # Get user from database
     user = crud.get_user_by_email(db, user_email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    # Update profile photo
+
     user.profile_photo = request.profile_photo
     db.commit()
     db.refresh(user)
     
     return user
 
+
+@router.get("/profile_info",response_model=schemas.UserOut)
+def get_profile_info(current_user=Depends(get_current_user)):
+    return current_user
 
 @router.get("/me", response_model=schemas.UserOut)
 def read_me(current_user=Depends(get_current_user)):

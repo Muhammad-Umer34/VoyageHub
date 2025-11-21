@@ -14,9 +14,14 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux'; 
+import { ProfileInfo } from '../api/auth';
+import { useNavigate } from 'react-router-dom';
+import { updateProfile } from '../features/ProfileSlice';
 
 const Topbar = ({ toggleSidebar }) => {
+  const navigate = useNavigate();
+  const dispatch = useDispatch(); 
   const profile = useSelector((state) => state.profile);
   const { isDark, toggleTheme } = useTheme();
   const [showNotifications, setShowNotifications] = useState(false);
@@ -36,7 +41,6 @@ const Topbar = ({ toggleSidebar }) => {
     { icon: UtensilsCrossed, label: 'Add eat & drink' },
   ];
 
-  // Helper function to get initials from full name
   const getInitials = () => {
     if (!profile?.full_name) return 'U';
     const names = profile.full_name.split(' ');
@@ -45,8 +49,37 @@ const Topbar = ({ toggleSidebar }) => {
   };
 
   useEffect(() => {
-    console.log("Profile data in Topbar:", profile);
-  }, [profile]);
+    const fetchProfile = async () => {
+      console.log("Profile data in Topbar:", profile);
+      
+      if (!profile || !profile.full_name) {
+        try {
+          const response = await ProfileInfo();
+          
+          if (response.status === 200) {
+            const userProfile = response.data;
+            dispatch(updateProfile({
+              full_name: userProfile.full_name,
+              username: userProfile.username,
+              email: userProfile.email,
+              profile_photo: userProfile.profile_photo,
+              id: userProfile.id,
+            }));
+            
+            console.log("Profile fetched successfully:", userProfile);
+          }
+        } catch (error) {
+          console.error("Error fetching profile info:", error);
+        
+          if (error.response?.status === 401) {
+            navigate('/login');
+          }
+        }
+      }
+    };
+
+    fetchProfile();
+  }, [profile, dispatch, navigate]); 
 
   return (
     <motion.header
@@ -216,7 +249,6 @@ const Topbar = ({ toggleSidebar }) => {
             </AnimatePresence>
           </div>
 
-          {/* Profile */}
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}

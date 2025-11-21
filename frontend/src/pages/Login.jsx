@@ -37,6 +37,7 @@ const Login = () => {
           username: userProfile.username,
           email: userProfile.email,
           profile_photo: userProfile.profile_photo,
+          id: userProfile.id,
         }));
         
         console.log("Login response data:", response);

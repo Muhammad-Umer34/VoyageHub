@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import Base, engine
 from controllers.auth_controllers import router as auth_router
+from controllers.itennary_controllers import router as itinerary_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -22,3 +23,4 @@ async def test():
 
 
 app.include_router(auth_router)
+app.include_router(itinerary_router)

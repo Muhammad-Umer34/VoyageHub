@@ -27,19 +27,18 @@ class Itinerary(Base):
     __tablename__ = "itineraries"
 
     id = Column(Integer, primary_key=True, index=True)
-
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-
+    
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
     destination = Column(String, nullable=False)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     cover_image = Column(String, nullable=True)
-
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
+    
     owner = relationship("User", back_populates="itineraries")
     collaborators = relationship("ItineraryCollaborator", cascade="all, delete")
     day_schedules = relationship("DaySchedule", cascade="all, delete")

@@ -6,7 +6,7 @@ import FormData from 'form-data';
 
 async function uploadImage() {
   const filePath = './src/assets/user.png';  
-  const cloudName = 'dbslrfquo';
+  const cloudName = 'dbsluo';
   const unsignedUploadPreset = 'Voyage_Hub';
 
   const formData = new FormData();

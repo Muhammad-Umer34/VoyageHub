@@ -1,6 +1,6 @@
-import { motion, AnimatePresence } from 'framer-motion';
-import { NavLink } from 'react-router-dom';
-import { 
+import { motion, AnimatePresence } from "framer-motion";
+import { NavLink } from "react-router-dom";
+import {
   Plane,
   Compass,
   FileText,
@@ -10,54 +10,58 @@ import {
   Share2,
   Search,
   MapPin,
-  Camera
-} from 'lucide-react';
-import { useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { updateProfile } from '../features/ProfileSlice';
-import { UpdateProfilePhoto } from '../api/auth';
-import axios from 'axios';
+  Camera,
+} from "lucide-react";
+import { useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { updateProfile } from "../features/ProfileSlice";
+import { UpdateProfilePhoto } from "../api/auth";
+import axios from "axios";
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const dispatch = useDispatch();
   const profile = useSelector((state) => state.profile);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
 
-  const CLOUDINARY_CLOUD_NAME = 'dbslrfquo';
-  const CLOUDINARY_UPLOAD_PRESET = 'Voyage_Hub';
+  const CLOUDINARY_CLOUD_NAME = "dbslrfquo";
+  const CLOUDINARY_UPLOAD_PRESET = "Voyage_Hub";
 
   const uploadToCloudinary = async (file) => {
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    formData.append("file", file);
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
 
     try {
       const response = await axios.post(
         `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-        formData
-        // Don't include headers or withCredentials for Cloudinary
+        formData,
+        {
+          withCredentials: false, // Explicitly disable credentials for Cloudinary
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
       );
       return response.data.secure_url;
     } catch (error) {
-      console.error('Cloudinary upload error:', error);
-      throw new Error('Failed to upload image to Cloudinary');
+      console.error("Cloudinary upload error:", error);
+      throw new Error("Failed to upload image to Cloudinary");
     }
   };
-
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file");
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert('Image size should be less than 5MB');
+      alert("Image size should be less than 5MB");
       return;
     }
 
@@ -66,27 +70,29 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     try {
       // Upload new image to Cloudinary
       const newImageUrl = await uploadToCloudinary(file);
-      console.log('New image uploaded:', newImageUrl);
+      console.log("New image uploaded:", newImageUrl);
 
       // Update profile photo in backend
       const response = await UpdateProfilePhoto(newImageUrl);
-      
+
       if (response.status === 200) {
         // Update Redux store with new profile photo
-        dispatch(updateProfile({
-          ...profile,
-          profile_photo: newImageUrl,
-        }));
-        
-        alert('Profile photo updated successfully!');
+        dispatch(
+          updateProfile({
+            ...profile,
+            profile_photo: newImageUrl,
+          })
+        );
+
+        alert("Profile photo updated successfully!");
       }
     } catch (error) {
-      console.error('Error updating profile photo:', error);
-      
+      console.error("Error updating profile photo:", error);
+
       if (error.response?.status === 401) {
-        alert('Session expired. Please login again.');
+        alert("Session expired. Please login again.");
       } else {
-        alert('Failed to update profile photo. Please try again.');
+        alert("Failed to update profile photo. Please try again.");
       }
     } finally {
       setUploadingImage(false);
@@ -94,18 +100,30 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   };
 
   const getInitials = () => {
-    if (!profile?.full_name) return 'U';
-    const names = profile.full_name.split(' ');
+    if (!profile?.full_name) return "U";
+    const names = profile.full_name.split(" ");
     if (names.length === 1) return names[0].charAt(0).toUpperCase();
-    return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
+    return (
+      names[0].charAt(0) + names[names.length - 1].charAt(0)
+    ).toUpperCase();
   };
 
   const menuItems = [
-    { icon: Plane, label: 'Trips', path: '/trips', count: 0 },
-    { icon: Compass, label: 'Countries', path: '/countries', count: profile?.countries || 0 },
-    { icon: FileText, label: 'Articles', path: '/articles', count: 0 },
-    { icon: UtensilsCrossed, label: 'Restaurants', path: '/restaurants', count: 0 },
-    { icon: Bed, label: 'Places', path: '/places', count: 0 },
+    { icon: Plane, label: "Trips", path: "/trips", count: 0 },
+    {
+      icon: Compass,
+      label: "Countries",
+      path: "/countries",
+      count: profile?.countries || 0,
+    },
+    { icon: FileText, label: "Articles", path: "/articles", count: 0 },
+    {
+      icon: UtensilsCrossed,
+      label: "Restaurants",
+      path: "/restaurants",
+      count: 0,
+    },
+    { icon: Bed, label: "Places", path: "/places", count: 0 },
   ];
 
   return (
@@ -126,7 +144,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       {/* Sidebar */}
       <aside
         className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white dark:bg-[#1e2028] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         {/* Logo */}
@@ -136,7 +154,9 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
               <MapPin className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900 dark:text-white">TravelPlan</h1>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white">
+                TravelPlan
+              </h1>
               <p className="text-xs text-gray-500">Plan & Explore</p>
             </div>
           </div>
@@ -148,9 +168,9 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             <div className="relative group">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg shadow-lg overflow-hidden">
                 {profile?.profile_photo ? (
-                  <img 
-                    src={profile.profile_photo} 
-                    alt="Profile" 
+                  <img
+                    src={profile.profile_photo}
+                    alt="Profile"
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -175,10 +195,10 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-gray-900 dark:text-white truncate">
-                {profile?.full_name || 'User'}
+                {profile?.full_name || "User"}
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                @{profile?.username || 'username'}
+                @{profile?.username || "username"}
               </p>
             </div>
           </div>
@@ -228,18 +248,22 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
               className={({ isActive }) =>
                 `w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg mb-1 transition-all ${
                   isActive
-                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                    ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                 }`
               }
             >
               {({ isActive }) => (
                 <>
                   <div className="flex items-center gap-3">
-                    <item.icon className={`w-5 h-5 ${isActive ? 'text-teal-500' : ''}`} />
+                    <item.icon
+                      className={`w-5 h-5 ${isActive ? "text-teal-500" : ""}`}
+                    />
                     <span className="font-medium text-sm">{item.label}</span>
                   </div>
-                  <span className="text-xs font-semibold text-gray-400">{item.count}</span>
+                  <span className="text-xs font-semibold text-gray-400">
+                    {item.count}
+                  </span>
                 </>
               )}
             </NavLink>
@@ -261,8 +285,8 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
                 isActive
-                  ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                  ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"
+                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50"
               }`
             }
           >
