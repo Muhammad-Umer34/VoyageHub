@@ -46,3 +46,25 @@ class Token(BaseModel):
 
 class emailVerification(BaseModel):
     message:str
+
+
+class Invite(BaseModel):
+    email: EmailStr
+    itinerary_id: int
+
+
+class NotificationResponse(BaseModel):
+    notification_id: int
+
+
+class CollabNotificationOut(BaseModel):
+    id: int
+    sender_id: int
+    receiver_id: int
+    itinerary_id: int
+    message: str
+    status: str  # 'pending', 'accepted', 'rejected'
+    created_at: datetime
+
+    class Config:
+        from_attributes = True    

@@ -56,3 +56,17 @@ export const ProfileInfo = () => {
 export const Create_Itinerary = (itineraryData) => {
   return axios.post(`http://localhost:8000/itineraries/create`, itineraryData);
 }
+
+
+export const Get_Itineraries = () => {
+  return axios.get(`http://localhost:8000/itineraries/get-itineraries`);
+}
+
+export const Invite_Collaborator = (inviteData) => {
+  return axios.post(`http://localhost:8000/itineraries/invite`, inviteData);
+}
+
+
+export const Get_Invitations = () => {
+  return axios.get(`http://localhost:8000/itineraries/invitations`);
+}

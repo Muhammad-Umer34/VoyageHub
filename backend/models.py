@@ -1,9 +1,6 @@
-from sqlalchemy import (
-    Column, String, Boolean, Integer, DateTime, Date, Time,
-    ForeignKey, UniqueConstraint
-)
-from sqlalchemy.orm import relationship
-from datetime import datetime
+from sqlalchemy import ( Column, String, Boolean, Integer, DateTime, Date, Time, ForeignKey, UniqueConstraint ) 
+from sqlalchemy.orm import relationship 
+from datetime import datetime 
 from database import Base
 
 
@@ -15,12 +12,28 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, nullable=True)
-    profile_photo = Column(String, nullable=False, default="https://res.cloudinary.com/dbslrfquo/image/upload/v1763120927/pde6iyl46pvyfkbmmi50.png")
+    profile_photo = Column(
+        String,
+        nullable=False,
+        default="https://res.cloudinary.com/dbslrfquo/image/upload/v1763120927/pde6iyl46pvyfkbmmi50.png"
+    )
     is_verified = Column(Boolean, default=False)
     verification_code = Column(String, nullable=True)
     code_expiry = Column(DateTime, nullable=True)
 
     itineraries = relationship("Itinerary", back_populates="owner")
+
+    # relationship for notifications
+    sent_notifications = relationship(
+        "CollabNotification",
+        foreign_keys="CollabNotification.sender_id",
+        cascade="all, delete"
+    )
+    received_notifications = relationship(
+        "CollabNotification",
+        foreign_keys="CollabNotification.receiver_id",
+        cascade="all, delete"
+    )
 
 
 class Itinerary(Base):
@@ -35,20 +48,23 @@ class Itinerary(Base):
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     cover_image = Column(String, nullable=True)
-    
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     owner = relationship("User", back_populates="itineraries")
+
     collaborators = relationship("ItineraryCollaborator", cascade="all, delete")
     day_schedules = relationship("DaySchedule", cascade="all, delete")
+
+    notifications = relationship("CollabNotification", cascade="all, delete")
 
 
 class ItineraryCollaborator(Base):
     __tablename__ = "itinerary_collaborators"
 
     id = Column(Integer, primary_key=True, index=True)
-
+    
     itinerary_id = Column(Integer, ForeignKey("itineraries.id"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
@@ -79,15 +95,26 @@ class Activity(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     day_schedule_id = Column(Integer, ForeignKey("day_schedules.id"), nullable=False, index=True)
-
     title = Column(String, nullable=False)
     type = Column(String, nullable=False)
     location = Column(String, nullable=True)
-
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
-
     description = Column(String, nullable=True)
     cover_image = Column(String, nullable=True)
+    position = Column(Integer, nullable=False)
 
-    position = Column(Integer, nullable=False) 
+
+class CollabNotification(Base):
+    __tablename__ = "collab_notifications"
+    id = Column(Integer, primary_key=True, index=True)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    receiver_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    itinerary_id = Column(Integer, ForeignKey("itineraries.id"), nullable=False)
+    message = Column(String, nullable=False)
+    status = Column(String, default="pending")  
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    sender = relationship("User", foreign_keys=[sender_id])
+    receiver = relationship("User", foreign_keys=[receiver_id])
+    itinerary = relationship("Itinerary")
