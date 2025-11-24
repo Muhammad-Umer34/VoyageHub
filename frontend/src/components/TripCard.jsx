@@ -3,8 +3,10 @@ import { Share2, Calendar, MapPin, UserPlus, X, Clock, Heart } from 'lucide-reac
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Invite_Collaborator } from '../api/auth';
+import { useNavigate } from 'react-router-dom';
 
 const TripsList = () => {
+  const navigate = useNavigate();
   const itineraries = useSelector((state) => state.itinerary.itineraries);
 
   const SingleTripCard = ({ itinerary, onShare }) => {
@@ -32,6 +34,11 @@ const TripsList = () => {
 
     const formatDateRange = () => {
       return `${formatDate(itinerary.start_date)} - ${formatDate(itinerary.end_date)}`;
+    };
+    
+    const HandleViewTrip = () => {
+      console.log('View trip:', itinerary.id);
+      navigate(`/trips/${itinerary.id}`);
     };
 
     const handleAddFriend = async () => {
@@ -199,6 +206,10 @@ const TripsList = () => {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    HandleViewTrip();
+                  }}
                   className="px-4 py-1.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
                 >
                   View Trip
@@ -279,7 +290,6 @@ const TripsList = () => {
                     )}
                   </div>
 
-                  {/* Display itinerary ID for reference */}
                   <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 p-2 rounded">
                     Itinerary ID: {itinerary.id}
                   </div>

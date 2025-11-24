@@ -9,14 +9,15 @@ import Settings from "./pages/Settings";
 import store from "../store";
 import { Provider } from "react-redux";
 
-// Your existing auth pages
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgetPassword from "./pages/ForgetPassword";
 import ResetPasswordPage from "./pages/ResetPassword";
 import VerifyEmailForm from "./pages/VerifyEmail";
+import Trip from "./pages/Trip";
+import Activity from "./pages/Activity";
+import Hotel from "./pages/Hotel";
 
-// Dashboard Layout Wrapper
 const DashboardLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -38,14 +39,12 @@ function App() {
         <ProfileProvider>
           <BrowserRouter>
             <Routes>
-              {/* Auth Routes - Your existing pages */}
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/forget-password" element={<ForgetPassword />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/verify-email" element={<VerifyEmailForm />} />
 
-              {/* Dashboard Routes - New pages with layout */}
               <Route
                 path="/dashboard"
                 element={
@@ -54,7 +53,7 @@ function App() {
                   </DashboardLayout>
                 }
               />
-
+         
               <Route
                 path="/settings"
                 element={
@@ -96,7 +95,20 @@ function App() {
                   </DashboardLayout>
                 }
               />
-
+               
+              <Route
+              path="/trips/:id/sightseeing"
+              element={
+                  <Activity />
+              }
+              />
+              <Route
+              path="/trips/:id/accommodation"
+              element={
+                  <Hotel />
+              }
+              />
+              
               <Route
                 path="/profile"
                 element={
@@ -144,7 +156,12 @@ function App() {
                   </DashboardLayout>
                 }
               />
-
+              <Route
+              path="/trips/:id"
+              element={
+                  <Trip />
+              }
+              />
               <Route
                 path="/places"
                 element={

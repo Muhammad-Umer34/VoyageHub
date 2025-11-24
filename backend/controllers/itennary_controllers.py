@@ -1,4 +1,3 @@
-# controllers/itennary_controllers.py
 from fastapi import Depends, HTTPException, status, APIRouter
 from sqlalchemy.orm import Session
 from database import get_db
@@ -27,8 +26,6 @@ async def create_new_itinerary(
     current_user=Depends(get_current_user)
 ):
     itinerary = create_itinerary(db, itinerary_data, current_user.id)
-
-    # Send notification in proper format
     await send_notification(
         current_user.id,
         {
@@ -47,11 +44,25 @@ def get_user_itineraries(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    return (
+    user_id = current_user.id
+
+    owned = (
         db.query(Itinerary)
-        .filter(Itinerary.owner_id == current_user.id)
+        .filter(Itinerary.owner_id == user_id)
         .all()
     )
+
+    collaborated = (
+        db.query(Itinerary)
+        .join(ItineraryCollaborator, Itinerary.id == ItineraryCollaborator.itinerary_id)
+        .filter(ItineraryCollaborator.user_id == user_id)
+        .all()
+    )
+
+    all_itineraries = list({i.id: i for i in owned + collaborated}.values())
+
+    return all_itineraries
+
 
 
 @router.post("/invite")
@@ -60,13 +71,11 @@ async def invite_user(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    # 1. Find the receiver user from email
     receiver = db.query(User).filter(User.email == invite_data.email).first()
 
     if not receiver:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # 2. Get itinerary details
     itinerary = db.query(Itinerary).filter(
         Itinerary.id == invite_data.itinerary_id
     ).first()
@@ -74,11 +83,9 @@ async def invite_user(
     if not itinerary:
         raise HTTPException(status_code=404, detail="Itinerary not found")
 
-    # 3. Verify ownership
     if itinerary.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to invite to this itinerary")
 
-    # 4. Check if invite already exists
     existing = db.query(CollabNotification).filter(
         CollabNotification.itinerary_id == invite_data.itinerary_id,
         CollabNotification.receiver_id == receiver.id,
@@ -88,7 +95,6 @@ async def invite_user(
     if existing:
         raise HTTPException(status_code=400, detail="Invite already sent and pending")
 
-    # 5. Create collaboration notification
     notification = CollabNotification(
         sender_id=current_user.id,
         receiver_id=receiver.id,
@@ -102,7 +108,6 @@ async def invite_user(
     db.commit()
     db.refresh(notification)
 
-    # 6. Send WebSocket notification
     await send_notification(
         receiver.id,
         {

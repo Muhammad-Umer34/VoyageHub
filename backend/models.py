@@ -23,7 +23,6 @@ class User(Base):
 
     itineraries = relationship("Itinerary", back_populates="owner")
 
-    # relationship for notifications
     sent_notifications = relationship(
         "CollabNotification",
         foreign_keys="CollabNotification.sender_id",
