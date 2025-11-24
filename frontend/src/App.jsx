@@ -17,6 +17,7 @@ import VerifyEmailForm from "./pages/VerifyEmail";
 import Trip from "./pages/Trip";
 import Activity from "./pages/Activity";
 import Hotel from "./pages/Hotel";
+import Resturant from "./pages/Resturant";
 
 const DashboardLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -106,6 +107,12 @@ function App() {
               path="/trips/:id/accommodation"
               element={
                   <Hotel />
+              }
+              />
+              <Route
+              path="/trips/:id/meal"
+              element={
+                  <Resturant />
               }
               />
               

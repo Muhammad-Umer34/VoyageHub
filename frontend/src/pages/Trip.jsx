@@ -54,6 +54,7 @@ const searchDestination = async (query) => {
     )}&format=json&apiKey=${GEOAPIFY_API_KEY}`;
 
     const response = await fetch(url);
+    console.log("Destination search response:", response);
 
     if (!response.ok) {
       throw new Error("Failed to fetch location data");
