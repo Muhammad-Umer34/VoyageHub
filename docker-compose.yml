@@ -50,6 +50,7 @@ services:
     networks:
       - itinerary_net
 
+  
   frontend:
     build: ./frontend
     container_name: itinerary_frontend
@@ -58,10 +59,12 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    command: ["npm", "run", "dev", "--", "--host"]
     networks:
       - itinerary_net
     depends_on:
       - backend
+
 
 networks:
   itinerary_net:

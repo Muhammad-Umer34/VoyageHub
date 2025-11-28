@@ -70,3 +70,15 @@ export const Invite_Collaborator = (inviteData) => {
 export const Get_Invitations = () => {
   return axios.get(`http://localhost:8000/itineraries/invitations`);
 }
+
+export const Post_Sightseeing_Activity = (sightseeingData) => {
+  return axios.post(`http://localhost:8000/itineraries/add/sightseeking-activity`, sightseeingData);
+}
+
+export const Get_all_activities = (itinerary_id) => {
+  return axios.get(`http://localhost:8000/itineraries/get_all_activities_of_itinerary/${itinerary_id}`);
+}
+
+export const Post_Meal_Activity = (mealData) => {
+  return axios.post(`http://localhost:8000/itineraries/add/meal-activity`, mealData);
+}

@@ -68,3 +68,46 @@ class CollabNotificationOut(BaseModel):
 
     class Config:
         from_attributes = True    
+
+
+class SightSeekingActivityIN(BaseModel):
+    title: str
+    location_name: str 
+    entry_fee: Optional[int] = None
+    cover_image: Optional[str] = None
+    time: Optional[str] = None  
+    description: Optional[str] = None
+    type: str = "sightseeing"  
+    itinerary_id: int
+    day_number: int
+    date: str 
+
+
+class SightSeekingActivityOUT(BaseModel):
+    id: int
+    title: str
+    type: str
+    time: Optional[str] = None
+    description: Optional[str] = None
+    cover_image: Optional[str] = None
+    added_by: int
+    day_schedule_id: int
+    location_name: str
+    entry_fee: Optional[int] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class MealActivityIN(BaseModel):
+    title: str
+    type: str = "meal"
+    description: Optional[str] = None
+    cover_image: Optional[str] = None
+
+    cuisine_type: Optional[str] = None
+    restaurant_name: Optional[str] = None
+
+    itinerary_id: int
+    day_number: int
+    date: str

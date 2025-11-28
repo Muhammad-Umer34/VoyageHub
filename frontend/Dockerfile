@@ -1,19 +1,15 @@
-# Use a lightweight Node image
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy dependency files first for caching
-COPY package*.json ./
+# Copy only package files to install dependencies
+COPY package.json package-lock.json ./
 
-# Install dependencies
 RUN npm install
 
-# Copy the rest of your app
+# Copy the rest of the frontend code
 COPY . .
 
-# Expose port
 EXPOSE 5173
 
-# Run dev server
 CMD ["npm", "run", "dev", "--", "--host"]

@@ -1,7 +1,7 @@
-import { MapPin, Clock, DollarSign, ExternalLink, ImageOff } from "lucide-react";
+import { Clock, DollarSign, ExternalLink, ImageOff } from "lucide-react";
 import { useState } from "react";
 
-export default function ActivityCard({ activity }) {
+export default function ActivityCard({ activity, toggleSelect, isSelected }) {
   const [imageError, setImageError] = useState(false);
   const [showFullDescription, setShowFullDescription] = useState(false);
 
@@ -16,13 +16,21 @@ export default function ActivityCard({ activity }) {
     activity.description || activity.shortDescription || ""
   );
 
-  // Determine if description is long enough to show toggle
   const isLongDescription = description.length > 150;
 
   return (
     <div className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100 group flex flex-col">
       {/* Image */}
       <div className="relative h-56 overflow-hidden bg-gray-50">
+        <div className="absolute top-4 left-4 z-20">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => toggleSelect(activity)}
+            className="w-5 h-5 accent-[#13C892] cursor-pointer"
+          />
+        </div>
+
         {!imageError && activity.pictures && activity.pictures.length > 0 ? (
           <img
             src={activity.pictures[0]}
@@ -76,8 +84,8 @@ export default function ActivityCard({ activity }) {
         {/* Description */}
         {description && (
           <p
-            className={`text-sm text-gray-600 leading-relaxed mb-4 transition-max-height duration-500 ease-in-out overflow-hidden ${
-              showFullDescription ? "max-h-[1000px]" : "max-h-[4.5rem]" 
+            className={`text-sm text-gray-600 leading-relaxed mb-4 transition-all duration-500 ease-in-out overflow-hidden ${
+              showFullDescription ? "max-h-[1000px]" : "max-h-[4.5rem]"
             }`}
           >
             {description}
@@ -91,12 +99,19 @@ export default function ActivityCard({ activity }) {
           >
             {showFullDescription ? "Show less" : "Read more"}
             <svg
-              className={`w-4 h-4 transition-transform ${showFullDescription ? "rotate-180" : ""}`}
+              className={`w-4 h-4 transition-transform ${
+                showFullDescription ? "rotate-180" : ""
+              }`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M19 9l-7 7-7-7"
+              ></path>
             </svg>
           </button>
         )}
