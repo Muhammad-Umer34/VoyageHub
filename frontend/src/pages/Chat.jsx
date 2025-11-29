@@ -8,20 +8,25 @@ import {
   ArrowLeft,
   MoreVertical,
   Image as ImageIcon,
-  Smile,
+  BarChart3,
 } from "lucide-react";
 import { Get_All_Collaborators, Send_Chat_Message, Get_Chat_Messages } from "../api/auth";
 import { useParams, useNavigate } from "react-router-dom";
 import { useWebSocket } from "../contexts/WebSocketContext";
 import { useSelector } from "react-redux";
+import PollCreator from "../components/PollCreator";
+import PollMessage from "../components/PollMessage";
+import { Create_Poll_Message,Cast_Vote } from "../api/auth";
+
 
 const Chat = () => {
-  const { activeUsers, messageQueue, setMessageQueue } = useWebSocket();
+  const { activeUsers, messageQueue, setMessageQueue , newPollMessage,setNewPollMessage} = useWebSocket();
   const currentUser = useSelector((state) => state.profile);
   const [collaborators, setCollaborators] = useState([]);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showPollCreator, setShowPollCreator] = useState(false);
   const messagesEndRef = useRef(null);
   const { id } = useParams();
   const itineraries = useSelector((state) => state.itinerary.itineraries);
@@ -29,6 +34,34 @@ const Chat = () => {
     (itinerary) => itinerary.id === parseInt(id)
   );
   const navigate = useNavigate();
+
+  // Helper function to transform messages for consistent structure
+  const transformMessage = (msg) => {
+    if (msg.message_type === "poll") {
+      return {
+        ...msg,
+        type: "poll",
+        poll: {
+          id: msg.poll_id,
+          question: msg.question,
+          options: msg.options.map((opt) => ({
+            id: opt.id,
+            text: opt.text,
+            votes: Array(opt.vote_count).fill(null), // Simulate votes for count display
+            vote_count: opt.vote_count,
+          })),
+          multipleChoice: false, // Default; adjust if backend supports
+        },
+      };
+    } else {
+      return {
+        ...msg,
+        type: "text",
+      };
+    }
+  };
+
+  const transformMessages = (rawMessages) => rawMessages.map(transformMessage);
 
   // Scroll to bottom of messages
   const scrollToBottom = () => {
@@ -52,7 +85,7 @@ const Chat = () => {
         // Fetch chat messages
         const chatResponse = await Get_Chat_Messages(id);
         console.log("Chat Messages Response:", chatResponse.data);
-        setMessages(chatResponse.data || []);
+        setMessages(transformMessages(chatResponse.data || []));
         
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -82,6 +115,7 @@ const Chat = () => {
             sender_id,
             text,
             created_at: timestamp,
+            type: "text", // Assume text for WebSocket messages
           }))
           .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
         if (messagesToAdd.length > 0) {
@@ -94,6 +128,25 @@ const Chat = () => {
       }
     }
   }, [messageQueue, id, currentUser?.id]);
+
+  useEffect(() => {
+    if(!newPollMessage) return;
+    const dataofnewpollmessage = {
+        itinerary_id : newPollMessage.itinerary_id,
+        created_at : newPollMessage.timestamp,
+        sender_id : newPollMessage.sender_id,
+        message_type : "poll",
+        text : "",
+        poll_id : newPollMessage.poll.id,
+        question : newPollMessage.poll.question,
+        options : newPollMessage.poll.options,
+        id:newPollMessage.message_id,
+      }
+
+      console.log("New poll message data:", dataofnewpollmessage);
+      setMessages(prev => [...prev, transformMessage(dataofnewpollmessage)]);
+      setNewPollMessage(null); // Clear after processing
+  }, [newPollMessage]);
 
   // Check if user is online
   const isUserOnline = (userId) => {
@@ -116,6 +169,7 @@ const Chat = () => {
           sender_id: currentUser?.id,
           text: message.trim(),
           created_at: new Date().toISOString(),
+          type: "text"
         };
         
         setMessages((prev) => [...prev, tempMessage]);
@@ -127,17 +181,115 @@ const Chat = () => {
         console.log("Message sent response:", response);
 
         if (response.data) {
+          const transformedResponse = transformMessage(response.data);
           setMessages((prev) => 
             prev.map((msg) => 
-              msg.id === tempMessage.id ? response.data : msg
+              msg.id === tempMessage.id ? transformedResponse : msg
             )
           );
         }
       } catch (error) {
         console.error("Error sending message:", error);
-        // Remove temp message on error
         setMessages((prev) => prev.filter((msg) => !msg.id.toString().startsWith("temp-")));
         alert("Failed to send message. Please try again.");
+      }
+    }
+  };
+
+  const handleCreatePoll = async (pollData) => {
+    // Optimistic UI update
+    const tempPollMessage = {
+      id: `poll-${Date.now()}`,
+      itinerary_id: parseInt(id),
+      sender_id: currentUser?.id,
+      type: "poll",
+      poll: {
+        id: Date.now(),
+        question: pollData.question,
+        options: pollData.options.map((text, index) => ({
+          id: index,
+          text,
+          votes: [],
+          vote_count: 0,
+        })),
+        multipleChoice: pollData.multipleChoice || false,
+      },
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, tempPollMessage]);
+    
+    const data = {
+      itinerary_id: id,
+      question: pollData.question,
+      options: pollData.options,
+    };
+    console.log("Data to send for poll creation:", data);
+    console.log("Creating poll:", pollData);
+    
+    try {
+      const res = await Create_Poll_Message(data);
+      console.log("Poll created response:", res);
+      const transformedResponse = transformMessage(res.data);
+      setMessages((prev) => 
+        prev.map((msg) => 
+          msg.id === tempPollMessage.id ? transformedResponse : msg
+        )
+      );
+    } catch (err) {
+      console.error("Error creating poll:", err);
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempPollMessage.id));
+      alert("Failed to create poll. Please try again.");
+    }
+    setShowPollCreator(false);
+  };
+
+  const handleVote = async (pollId, optionIndices) => {
+    // Optimistic update
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.type === "poll" && msg.poll.id === pollId) {
+          return {
+            ...msg,
+            poll: {
+              ...msg.poll,
+              options: msg.poll.options.map((opt, idx) => {
+                if (optionIndices.includes(idx)) {
+                  return {
+                    ...opt,
+                    votes: [...(opt.votes || []), currentUser.id]
+                  };
+                }
+                return opt;
+              })
+            }
+          };
+        }
+        return msg;
+      })
+    );
+
+    // TODO: Send vote to backend
+    console.log("Voting for poll:", pollId, "options indices:", optionIndices);
+    
+    // Find the poll to get actual option ids
+    const pollMsg = messages.find(m => m.type === "poll" && m.poll.id === pollId);
+    if (pollMsg && pollMsg.poll) {
+      const selectedOptionIds = optionIndices.map(idx => pollMsg.poll.options[idx]?.id);
+      console.log("Selected option ids:", selectedOptionIds);
+      
+      // Assuming single vote for now; extend for multiple if needed
+      if (selectedOptionIds.length > 0) {
+        const dataToCastVote = { poll_id: pollId, option_id: selectedOptionIds[0] };
+        console.log("Data to cast vote:", dataToCastVote);
+        
+        try {
+          const response = await Cast_Vote(dataToCastVote);
+          console.log("Vote response:", response);
+        } catch (error) {
+          console.error("Error casting vote:", error);
+          // Optionally revert optimistic update
+        }
       }
     }
   };
@@ -167,19 +319,16 @@ const Chat = () => {
     const diffInHours = (now - date) / (1000 * 60 * 60);
 
     if (diffInHours < 24) {
-      // Show time for messages within last 24 hours
       return date.toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
       });
     } else if (diffInHours < 48) {
-      // Show "Yesterday" for messages from yesterday
       return `Yesterday ${date.toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
       })}`;
     } else {
-      // Show date for older messages
       return date.toLocaleDateString([], {
         month: "short",
         day: "numeric",
@@ -187,6 +336,131 @@ const Chat = () => {
         minute: "2-digit",
       });
     }
+  };
+
+  const renderMessage = (msg, index) => {
+    const senderInfo = getSenderInfo(msg.sender_id);
+    const showAvatar = index === 0 || messages[index - 1]?.sender_id !== msg.sender_id;
+
+    if (msg.type === "poll") {
+      return (
+        <div
+          key={msg.id}
+          className={`flex gap-3 w-full ${senderInfo.isCurrentUser ? "flex-row-reverse" : ""}`}
+        >
+          {/* Avatar */}
+          <div className="flex-shrink-0 w-8">
+            {!senderInfo.isCurrentUser && showAvatar && (
+              <>
+                {senderInfo.photo ? (
+                  <img
+                    src={senderInfo.photo}
+                    alt={senderInfo.name}
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-white text-sm font-semibold">
+                    {senderInfo.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Poll Bubble */}
+          <div
+            className={`flex flex-col max-w-md ${
+              senderInfo.isCurrentUser ? "items-end" : "items-start"
+            }`}
+          >
+            {!senderInfo.isCurrentUser && showAvatar && (
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 px-1">
+                {senderInfo.name} created a poll
+              </span>
+            )}
+            <div
+              className={`rounded-2xl ${
+                senderInfo.isCurrentUser
+                  ? "bg-teal-500 text-white rounded-br-sm"
+                  : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm shadow-sm"
+              }`}
+            >
+              <PollMessage 
+                poll={msg.poll} 
+                currentUserId={currentUser?.id}
+                onVote={handleVote}
+              />
+            </div>
+            <span
+              className={`text-xs mt-1 px-1 ${
+                senderInfo.isCurrentUser
+                  ? "text-gray-500 dark:text-gray-400"
+                  : "text-gray-400 dark:text-gray-500"
+              }`}
+            >
+              {formatMessageTime(msg.created_at)}
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        key={msg.id}
+        className={`flex gap-3 ${senderInfo.isCurrentUser ? "flex-row-reverse" : ""}`}
+      >
+        {/* Avatar */}
+        <div className="flex-shrink-0 w-8">
+          {!senderInfo.isCurrentUser && showAvatar && (
+            <>
+              {senderInfo.photo ? (
+                <img
+                  src={senderInfo.photo}
+                  alt={senderInfo.name}
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-white text-sm font-semibold">
+                  {senderInfo.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Message Bubble */}
+        <div
+          className={`flex flex-col ${
+            senderInfo.isCurrentUser ? "items-end" : "items-start"
+          } max-w-md`}
+        >
+          {!senderInfo.isCurrentUser && showAvatar && (
+            <span className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 px-1">
+              {senderInfo.name}
+            </span>
+          )}
+          <div
+            className={`px-4 py-2 rounded-2xl ${
+              senderInfo.isCurrentUser
+                ? "bg-teal-500 text-white rounded-br-sm"
+                : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm shadow-sm"
+            }`}
+          >
+            <p className="text-sm break-words whitespace-pre-wrap">{msg.text}</p>
+          </div>
+          <span
+            className={`text-xs mt-1 px-1 ${
+              senderInfo.isCurrentUser
+                ? "text-gray-500 dark:text-gray-400"
+                : "text-gray-400 dark:text-gray-500"
+            }`}
+          >
+            {formatMessageTime(msg.created_at)}
+          </span>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -206,7 +480,7 @@ const Chat = () => {
               <MessageCircle className="w-5 h-5 text-teal-600" />
               Group Chat
             </h2>
-            <div className="w-9" /> {/* Spacer for alignment */}
+            <div className="w-9" />
           </div>
 
           {/* Group Info */}
@@ -248,7 +522,6 @@ const Chat = () => {
                     key={collab.id}
                     className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                   >
-                    {/* Avatar */}
                     <div className="relative flex-shrink-0">
                       {collab.profile_photo ? (
                         <img
@@ -261,17 +534,12 @@ const Chat = () => {
                           {collab.full_name.charAt(0).toUpperCase()}
                         </div>
                       )}
-                      {/* Online Indicator */}
                       <div
                         className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-gray-800 ${
-                          isUserOnline(collab.id)
-                            ? "bg-green-500"
-                            : "bg-gray-400"
+                          isUserOnline(collab.id) ? "bg-green-500" : "bg-gray-400"
                         }`}
                       />
                     </div>
-
-                    {/* User Info */}
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-gray-900 dark:text-white truncate text-sm">
                         {collab.full_name}
@@ -280,8 +548,6 @@ const Chat = () => {
                         @{collab.username}
                       </p>
                     </div>
-
-                    {/* Online Badge */}
                     {isUserOnline(collab.id) && (
                       <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                     )}
@@ -318,7 +584,6 @@ const Chat = () => {
               </p>
             </div>
           </div>
-
           <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
             <MoreVertical className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </button>
@@ -343,77 +608,13 @@ const Chat = () => {
                   Welcome to the group chat!
                 </h3>
                 <p className="text-gray-500 dark:text-gray-400 max-w-md">
-                  Share updates, coordinate plans, and discuss your trip with
-                  all collaborators in one place.
+                  Share updates, coordinate plans, and discuss your trip with all collaborators in one place.
                 </p>
               </div>
             </div>
           ) : (
             <>
-              {messages.map((msg, index) => {
-                const senderInfo = getSenderInfo(msg.sender_id);
-                const showAvatar =
-                  index === 0 || messages[index - 1]?.sender_id !== msg.sender_id;
-                
-                return (
-                  <div
-                    key={msg.id}
-                    className={`flex gap-3 ${
-                      senderInfo.isCurrentUser ? "flex-row-reverse" : ""
-                    }`}
-                  >
-                    {/* Avatar */}
-                    <div className="flex-shrink-0 w-8">
-                      {!senderInfo.isCurrentUser && showAvatar && (
-                        <>
-                          {senderInfo.photo ? (
-                            <img
-                              src={senderInfo.photo}
-                              alt={senderInfo.name}
-                              className="w-8 h-8 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-white text-sm font-semibold">
-                              {senderInfo.name.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    {/* Message Bubble */}
-                    <div
-                      className={`flex flex-col ${
-                        senderInfo.isCurrentUser ? "items-end" : "items-start"
-                      } max-w-md`}
-                    >
-                      {!senderInfo.isCurrentUser && showAvatar && (
-                        <span className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 px-1">
-                          {senderInfo.name}
-                        </span>
-                      )}
-                      <div
-                        className={`px-4 py-2 rounded-2xl ${
-                          senderInfo.isCurrentUser
-                            ? "bg-teal-500 text-white rounded-br-sm"
-                            : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm shadow-sm"
-                        }`}
-                      >
-                        <p className="text-sm break-words whitespace-pre-wrap">{msg.text}</p>
-                      </div>
-                      <span
-                        className={`text-xs mt-1 px-1 ${
-                          senderInfo.isCurrentUser
-                            ? "text-gray-500 dark:text-gray-400"
-                            : "text-gray-400 dark:text-gray-500"
-                        }`}
-                      >
-                        {formatMessageTime(msg.created_at)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+              {messages.map((msg, index) => renderMessage(msg, index))}
               <div ref={messagesEndRef} />
             </>
           )}
@@ -429,6 +630,14 @@ const Chat = () => {
               >
                 <ImageIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
               </button>
+              <button
+                type="button"
+                onClick={() => setShowPollCreator(true)}
+                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title="Create Poll"
+              >
+                <BarChart3 className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </button>
               <input
                 type="text"
                 value={message}
@@ -436,12 +645,6 @@ const Chat = () => {
                 placeholder="Type your message..."
                 className="flex-1 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none"
               />
-              <button
-                type="button"
-                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <Smile className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-              </button>
             </div>
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -458,6 +661,13 @@ const Chat = () => {
           </p>
         </div>
       </div>
+
+      {/* Poll Creator Modal */}
+      <PollCreator
+        isOpen={showPollCreator}
+        onClose={() => setShowPollCreator(false)}
+        onCreatePoll={handleCreatePoll}
+      />
     </div>
   );
 };

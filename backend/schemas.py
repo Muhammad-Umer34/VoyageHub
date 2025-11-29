@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, ConfigDict
-from typing import Optional
+from typing import Optional, List
 from datetime import date, datetime
 
 class UserCreate(BaseModel):
@@ -133,12 +133,38 @@ class TextMessageIN(BaseModel):
     text: str
     itinerary_id: int
 
+class PollOption(BaseModel):
+    id: int
+    text: str
+    vote_count: int
+
+    class Config:
+        from_attributes = True
+
 class ChatMessageOut(BaseModel):
     id: int
     itinerary_id: int
     sender_id: int
-    text: str
+    message_type: str 
+    text: Optional[str] = None
+    
+    # Poll-specific fields
+    poll_id: Optional[int] = None
+    question: Optional[str] = None
+    options: Optional[List[PollOption]] = None
+
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class PollMessageIN(BaseModel):
+    question: str
+    options: list[str]
+    itinerary_id: int        
+
+
+class PollOptionVoteIN(BaseModel):
+    poll_id: int
+    option_id: int

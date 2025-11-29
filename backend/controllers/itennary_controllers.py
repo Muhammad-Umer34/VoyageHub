@@ -611,4 +611,189 @@ async def get_chat_messages(
         .order_by(models.ChatMessage.created_at.asc())
         .all()
     )
-    return messages
+
+    formatted_messages = []
+
+    for msg in messages:
+        message_data = {
+            "id": msg.id,
+            "itinerary_id": msg.itinerary_id,
+            "sender_id": msg.sender_id,
+            "message_type": msg.message_type,
+            "created_at": msg.created_at
+        }
+
+        if msg.message_type == "poll":
+            # Load Poll + Options + Vote Count
+            poll = db.query(models.Poll).filter(models.Poll.message_id == msg.id).first()
+            
+            if poll:
+                options = []
+                for opt in poll.options:
+                    vote_count = len(opt.votes)
+                    options.append({
+                        "id": opt.id,
+                        "text": opt.option_text,
+                        "vote_count": vote_count
+                    })
+
+                message_data["poll_id"] = poll.id
+                message_data["question"] = poll.question
+                message_data["options"] = options
+                message_data["text"] = None
+            else:
+                message_data["poll_id"] = None
+                message_data["question"] = None
+                message_data["options"] = None
+                message_data["text"] = None
+
+        else:
+            # Regular text message
+            message_data["text"] = msg.text
+            message_data["poll_id"] = None
+            message_data["question"] = None
+            message_data["options"] = None
+
+        formatted_messages.append(message_data)
+
+    return formatted_messages
+
+@router.post("/add/poll-message", status_code=status.HTTP_201_CREATED)
+async def add_poll_message(
+    data: schemas.PollMessageIN,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    # 1️⃣ Create Chat Message
+    message = models.ChatMessage(
+        sender_id=current_user.id,
+        text="",
+        itinerary_id=data.itinerary_id,
+        message_type="poll",
+        created_at=datetime.utcnow()
+    )
+
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+
+    # 2️⃣ Create Poll
+    poll = models.Poll(
+        message_id=message.id,
+        question=data.question
+    )
+    db.add(poll)
+    db.commit()
+    db.refresh(poll)
+
+    # 3️⃣ Insert Poll Options
+    option_objects = []
+    for option_text in data.options:
+        option = models.PollOption(
+            poll_id=poll.id,
+            option_text=option_text
+        )
+        db.add(option)
+        option_objects.append(option)
+
+    db.commit()
+
+    # Refresh options to get their IDs
+    db.refresh(poll)
+
+    # Format poll options for returning / broadcasting
+    formatted_options = [
+        {"id": opt.id, "text": opt.option_text, "votes": 0}
+        for opt in poll.options
+    ]
+
+    # 4️⃣ Prepare data for WebSocket Broadcast
+    broadcast_data = {
+        "type": "poll_message",
+        "message_id": message.id,
+        "itinerary_id": message.itinerary_id,
+        "sender_id": message.sender_id,
+        "poll": {
+            "id": poll.id,
+            "question": poll.question,
+            "options": formatted_options
+        },
+        "timestamp": message.created_at.isoformat(),
+    }
+
+    asyncio.create_task(broadcast_chat_message(broadcast_data))
+
+    # 5️⃣ Response
+    return {
+        "message": "Poll message added successfully",
+        "message_id": message.id,
+        "itinerary_id": message.itinerary_id,
+        "sender_id": message.sender_id,
+        "poll": {
+            "id": poll.id,
+            "question": poll.question,
+            "options": formatted_options
+        },
+        "timestamp": message.created_at.isoformat()
+    }
+
+
+@router.post("/cast_vote", status_code=status.HTTP_200_OK)
+async def cast_vote(
+    vote_data: schemas.PollOptionVoteIN,  # expects poll_id and option_id (poll_option_id)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    # Check if user has already voted in the poll (any option)
+    vote_exists = (
+        db.query(models.Vote)
+        .join(models.PollOption, models.Vote.poll_option_id == models.PollOption.id)
+        .filter(
+            models.PollOption.poll_id == vote_data.poll_id,
+            models.Vote.user_id == current_user.id
+        )
+        .first()
+    )
+
+    if vote_exists:
+        raise HTTPException(status_code=400, detail="Vote already cast for this poll by the user")
+
+    # Create new vote
+    vote = models.Vote(
+        user_id=current_user.id,
+        poll_option_id=vote_data.option_id,
+    )
+    db.add(vote)
+    db.commit()
+    db.refresh(vote)
+
+    return {"message": "Vote cast successfully"}
+
+
+
+@router.get("/did_i_vote/{poll_id}", status_code=status.HTTP_200_OK)
+def did_i_vote(
+    poll_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    vote = (
+        db.query(models.Vote)
+        .join(models.PollOption, models.Vote.poll_option_id == models.PollOption.id)
+        .filter(
+            models.PollOption.poll_id == poll_id,
+            models.Vote.user_id == current_user.id
+        )
+        .first()
+    )
+    
+    if vote:
+        return {
+            "did_vote": True,
+            "poll_option_id": vote.poll_option_id
+        }
+    else:
+        return {
+            "did_vote": False,
+            "poll_option_id": None
+        }

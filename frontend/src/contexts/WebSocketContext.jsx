@@ -13,8 +13,9 @@ export const useWebSocket = () => {
 export const WebSocketProvider = ({ children, userId }) => {
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [notifications, setNotifications] = useState([]);
-  const [activeUsers, setActiveUsers] = useState([]);  // <-- NEW state for active users
+  const [activeUsers, setActiveUsers] = useState([]);  
   const [messageQueue, setMessageQueue] = useState([]);
+  const [newPollMessage, setNewPollMessage] = useState(null);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
 
   const wsRef = useRef(null);
@@ -25,7 +26,6 @@ export const WebSocketProvider = ({ children, userId }) => {
   const MAX_RECONNECT_ATTEMPTS = 5;
   const RECONNECT_INTERVAL = 3000;
 
-  // Clean up function
   const cleanup = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
@@ -75,6 +75,12 @@ export const WebSocketProvider = ({ children, userId }) => {
             setMessageQueue((prev) => [...prev, notification]);
             return;
           }
+          if (notification.type === 'poll_message') {
+            console.log('📊 New poll message received:', notification);
+            setNewPollMessage(notification);
+            return;
+          }
+
 
           if (notification.id === 'welcome') {
             console.log('Welcome message received');
@@ -197,6 +203,8 @@ export const WebSocketProvider = ({ children, userId }) => {
     notifications,
     activeUsers,  // expose activeUsers in context
     messageQueue,
+    newPollMessage,
+    setNewPollMessage,
     setMessageQueue,
     reconnect,
     sendMessage,

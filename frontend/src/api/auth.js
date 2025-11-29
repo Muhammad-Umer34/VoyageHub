@@ -105,3 +105,16 @@ export const Send_Chat_Message = (messageData) => {
 export const Get_Chat_Messages = (itinerary_id) => {
   return axios.get(`http://localhost:8000/itineraries/get_chat_messages/${itinerary_id}`);
 }
+
+
+export const Create_Poll_Message = (pollData) => {
+  return axios.post(`http://localhost:8000/itineraries/add/poll-message`, pollData);
+}
+
+export const Cast_Vote = (voteData) => {
+  return axios.post(`http://localhost:8000/itineraries/cast_vote`, voteData);
+}
+
+export const Did_I_Vote = (poll_id) => {
+  return axios.get(`http://localhost:8000/itineraries/did_i_vote/${poll_id}`);
+}
