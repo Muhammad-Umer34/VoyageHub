@@ -3,18 +3,19 @@ from sqlalchemy.orm import Session
 from database import get_db
 from crud import create_itinerary
 from auth.dependencies import get_current_user
-from models import Itinerary, ItineraryCollaborator, CollabNotification, User
+from models import Itinerary, ItineraryCollaborator, CollabNotification, User , ChatMessage
 import schemas
 from datetime import datetime
 import models
 
 from websocket_manager import send_notification
+from websocket_manager import broadcast_chat_message
+import asyncio
 
 router = APIRouter(
     prefix="/itineraries",
     tags=["itineraries"],
 )
-
 
 @router.post(
     "/create",
@@ -472,7 +473,7 @@ async def add_accommodation_activity(
 
 
 def user_is_collaborator(db: Session, itinerary_id: int, user_id: int) -> bool:
-    return db.query(models.Collaborator).filter_by(itinerary_id=itinerary_id, user_id=user_id).count() > 0
+    return db.query(models.ItineraryCollaborator).filter_by(itinerary_id=itinerary_id, user_id=user_id).count() > 0
 
 
 @router.delete("/{itinerary_id}/days/{day_id}/activities/{activity_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -525,3 +526,89 @@ def delete_day_schedule(itinerary_id: int, day_id: int, db: Session = Depends(ge
     db.commit()
 
     return {"detail": "Day schedule and all associated activities deleted successfully"}
+
+
+
+@router.get("/get_all_collaborators/{itinerary_id}", response_model=list[schemas.UserOut])
+def get_all_collaborators(
+    itinerary_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    itinerary = (
+        db.query(Itinerary)
+        .filter(Itinerary.id == itinerary_id)
+        .first()
+    )
+
+    if not itinerary:
+        raise HTTPException(status_code=404, detail="Itinerary not found")
+    if (
+        current_user.id != itinerary.owner_id
+        and not user_is_collaborator(db, itinerary_id, current_user.id)
+    ):
+        raise HTTPException(status_code=403, detail="Not authorized to view collaborators for this itinerary")
+
+    collaborators = (
+        db.query(User)
+        .join(ItineraryCollaborator, User.id == ItineraryCollaborator.user_id)
+        .filter(ItineraryCollaborator.itinerary_id == itinerary_id)
+        .all()
+    )
+
+    owner = db.query(User).filter(User.id == itinerary.owner_id).first()
+    if owner:
+        collaborators.insert(0, owner)
+
+    return collaborators
+
+
+@router.post("/add/text-message", status_code=status.HTTP_201_CREATED)
+async def add_text_message(
+    data: schemas.TextMessageIN,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    message = models.ChatMessage(
+        sender_id=current_user.id,
+        text=data.text,
+        itinerary_id=data.itinerary_id,
+        message_type="text",
+        created_at=datetime.utcnow()
+    )
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+    broadcast_data = {
+        "message_id": message.id,
+        "itinerary_id": message.itinerary_id,
+        "sender_id": message.sender_id,  
+        "text": message.text,
+        "timestamp": message.created_at.isoformat(),
+    }
+
+    asyncio.create_task(broadcast_chat_message(broadcast_data))
+
+    return {
+        "message": "Text message added successfully",
+        "message_id": message.id,
+        "itinerary_id": message.itinerary_id,
+        "sender_id": message.sender_id,
+        "text": message.text,
+        "timestamp": message.created_at.isoformat()
+    }
+
+
+@router.get("/get_chat_messages/{itinerary_id}", response_model=list[schemas.ChatMessageOut])
+async def get_chat_messages(
+    itinerary_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    messages = (
+        db.query(models.ChatMessage)
+        .filter(models.ChatMessage.itinerary_id == itinerary_id)
+        .order_by(models.ChatMessage.created_at.asc())
+        .all()
+    )
+    return messages

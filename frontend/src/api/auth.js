@@ -91,3 +91,17 @@ export const Delete_Activity = (itinerary_id, day_id, activity_id) => {
   return axios.delete(`http://localhost:8000/itineraries/${itinerary_id}/days/${day_id}/activities/${activity_id}`);
 }
 
+
+
+export const Get_All_Collaborators = (itinerary_id) => {
+  return axios.get(`http://localhost:8000/itineraries/get_all_collaborators/${itinerary_id}`);
+}
+
+
+export const Send_Chat_Message = (messageData) => {
+  return axios.post(`http://localhost:8000/itineraries/add/text-message`, messageData);
+}
+
+export const Get_Chat_Messages = (itinerary_id) => {
+  return axios.get(`http://localhost:8000/itineraries/get_chat_messages/${itinerary_id}`);
+}

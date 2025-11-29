@@ -174,7 +174,7 @@ class SightseeingActivity(Base):
 
     activity = relationship("Activity", back_populates="sightseeing_activity")
 
-    
+
 class CollabNotification(Base):
     __tablename__ = "collab_notifications"
 
@@ -206,3 +206,62 @@ class CollabNotification(Base):
         back_populates="notifications",
         overlaps="notifications"
     )
+
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    itinerary_id = Column(Integer, ForeignKey("itineraries.id"), nullable=False)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    message_type = Column(String, nullable=False)  
+
+    text = Column(String, nullable=True)
+    file_url = Column(String, nullable=True)  
+
+    created_at = Column(DateTime, default=func.now())
+
+    sender = relationship("User")
+    itinerary = relationship("Itinerary")
+    poll = relationship("Poll", uselist=False, back_populates="message")
+
+class Poll(Base):
+    __tablename__ = "polls"
+
+    id = Column(Integer, primary_key=True, index=True)
+    message_id = Column(Integer, ForeignKey("chat_messages.id"), unique=True, nullable=False)
+
+    question = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+
+    message = relationship("ChatMessage", back_populates="poll")
+    options = relationship("PollOption", cascade="all, delete", back_populates="poll")
+
+class PollOption(Base):
+    __tablename__ = "poll_options"
+
+    id = Column(Integer, primary_key=True, index=True)
+    poll_id = Column(Integer, ForeignKey("polls.id"), nullable=False)
+
+    option_text = Column(String, nullable=False)
+
+    poll = relationship("Poll", back_populates="options")
+    votes = relationship("Vote", cascade="all, delete", back_populates="option")
+
+class Vote(Base):
+    __tablename__ = "votes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    poll_option_id = Column(Integer, ForeignKey("poll_options.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    voted_at = Column(DateTime, default=func.now())
+
+    option = relationship("PollOption", back_populates="votes")
+    user = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'poll_option_id', name='unique_user_vote_per_option'),
+    )
+

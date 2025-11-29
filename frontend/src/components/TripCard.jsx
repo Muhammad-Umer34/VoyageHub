@@ -203,17 +203,31 @@ const TripsList = () => {
                   </span>
                 </div>
                 
-                <motion.button
+               <div>
+                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={(e) => {
                     e.stopPropagation();
                     HandleViewTrip();
                   }}
-                  className="px-4 py-1.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+                  className="px-4 py-1.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm "
                 >
                   View Trip
                 </motion.button>
+                 <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/trips/${itinerary.id}/chat`, { state: { itineraryId: itinerary.id } });
+                  }}
+                  className="px-4 py-1.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm ml-2"
+                >
+                  Chat
+                </motion.button>
+               </div>
+                
               </div>
             </div>
           </div>

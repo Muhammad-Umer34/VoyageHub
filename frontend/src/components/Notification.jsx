@@ -1,21 +1,22 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Check, X, Clock, UserPlus, Trash2, WifiOff, Wifi } from "lucide-react";
 
 import { Get_Invitations } from "../api/auth";
+import { useWebSocket } from "../contexts/WebSocketContext";
 
-export default function Notifications({ userId }) {
-  const [notifications, setNotifications] = useState([]);
+export default function Notifications() {
+  const {
+    connectionStatus,
+    notifications,
+    reconnect,
+    updateNotificationStatus,
+    deleteNotification,
+    clearAllNotifications,
+    addNotifications,
+  } = useWebSocket();
+
   const [isOpen, setIsOpen] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState('connecting'); 
-  const [reconnectAttempts, setReconnectAttempts] = useState(0);
-  
-  const wsRef = useRef(null);
-  const reconnectTimeoutRef = useRef(null);
-  const mountedRef = useRef(true);
-
-  const MAX_RECONNECT_ATTEMPTS = 5;
-  const RECONNECT_INTERVAL = 3000;
 
   // Fetch existing invitations on mount
   useEffect(() => {
@@ -23,132 +24,20 @@ export default function Notifications({ userId }) {
       try {
         const response = await Get_Invitations();
         console.log('Fetched existing invitations:', response.data);
-        setNotifications(response.data.invitations || []);
+        
+        // Handle different response structures
+        const invitationsList = Array.isArray(response.data) 
+          ? response.data 
+          : response.data.invitations || [];
+          
+        addNotifications(invitationsList);
       } catch (error) {
         console.error("Failed to fetch invitations:", error);
       }
     };
 
-    if (userId) {
-      fetchInvitations();
-    }
-  }, [userId]);
-
-  // Clean up function
-  const cleanup = useCallback(() => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-  }, []);
-
-  // Connect to WebSocket
-  const connectWebSocket = useCallback(() => {
-    if (!userId || !mountedRef.current) {
-      console.log('Cannot connect: userId missing or component unmounted');
-      return;
-    }
-
-    cleanup();
-
-    try {
-      console.log(`Connecting to WebSocket for user ${userId}...`);
-      setConnectionStatus('connecting');
-
-      const ws = new WebSocket(`ws://localhost:8000/ws/notifications/${userId}`);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        if (!mountedRef.current) return;
-        console.log('✅ WebSocket connected successfully');
-        setConnectionStatus('connected');
-        setReconnectAttempts(0);
-      };
-
-      ws.onmessage = (event) => {
-        if (!mountedRef.current) return;
-        
-        try {
-          const notification = JSON.parse(event.data);
-          console.log('📨 Received notification:', notification);
-          
-          // Skip welcome messages
-          if (notification.id === 'welcome') {
-            console.log('Welcome message received');
-            return;
-          }
-          
-          // Add new notification to the list
-          setNotifications((prev) => {
-            // Check if notification already exists
-            const exists = prev.some(n => n.id === notification.id);
-            if (exists) {
-              console.log('Notification already exists, skipping');
-              return prev;
-            }
-            console.log('Adding new notification to list');
-            return [notification, ...prev];
-          });
-        } catch (error) {
-          console.error('Error parsing notification:', error);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('❌ WebSocket error:', error);
-        setConnectionStatus('disconnected');
-      };
-
-      ws.onclose = (event) => {
-        if (!mountedRef.current) return;
-        
-        console.log('WebSocket closed:', event.code, event.reason);
-        setConnectionStatus('disconnected');
-        wsRef.current = null;
-
-        if (event.code !== 1000 && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-          const nextAttempt = reconnectAttempts + 1;
-          console.log(`Reconnecting... Attempt ${nextAttempt}/${MAX_RECONNECT_ATTEMPTS}`);
-          setReconnectAttempts(nextAttempt);
-          
-          reconnectTimeoutRef.current = setTimeout(() => {
-            if (mountedRef.current) {
-              connectWebSocket();
-            }
-          }, RECONNECT_INTERVAL);
-        } else if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-          console.error('Max reconnection attempts reached');
-        }
-      };
-    } catch (error) {
-      console.error('Failed to create WebSocket:', error);
-      setConnectionStatus('disconnected');
-    }
-  }, [userId, reconnectAttempts, cleanup]);
-
-  // Initialize WebSocket connection
-  useEffect(() => {
-    mountedRef.current = true;
-    
-    if (userId) {
-      connectWebSocket();
-    }
-
-    return () => {
-      mountedRef.current = false;
-      cleanup();
-    };
-  }, [userId, connectWebSocket, cleanup]);
-
-  // Manual reconnect function
-  const handleReconnect = () => {
-    setReconnectAttempts(0);
-    connectWebSocket();
-  };
+    fetchInvitations();
+  }, [addNotifications]);
 
   // Respond to invite
   const respondToInvite = async (id, action) => {
@@ -163,40 +52,26 @@ export default function Notifications({ userId }) {
       });
 
       if (!res.ok) {
-        throw new Error(`Failed to ${action} invite: ${res.statusText}`);
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to ${action} invite`);
       }
 
       const data = await res.json();
       console.log(`✅ Invite ${action}ed:`, data);
       
-      // Update notification status locally
-      setNotifications((prev) =>
-        prev.map((n) => 
-          n.id === id 
-            ? { ...n, status: action === "accept" ? "accepted" : "rejected" } 
-            : n
-        )
-      );
+      // Update notification status
+      updateNotificationStatus(id, action === "accept" ? "accepted" : "rejected");
       
       // Show success message
-      alert(`Invitation ${action === "accept" ? "accepted" : "declined"} successfully!`);
+      const successMessage = action === "accept" 
+        ? "Invitation accepted successfully! The trip has been added to your dashboard." 
+        : "Invitation declined successfully.";
+      alert(successMessage);
       
     } catch (err) {
       console.error(`❌ Failed to respond to invite:`, err);
-      alert(`Failed to ${action} invitation. Please try again.`);
+      alert(err.message || `Failed to ${action} invitation. Please try again.`);
     }
-  };
-
-  // Delete notification
-  const deleteNotification = (id) => {
-    console.log('Deleting notification:', id);
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
-
-  // Clear all notifications
-  const clearAllNotifications = () => {
-    console.log('Clearing all notifications');
-    setNotifications([]);
   };
 
   const unreadCount = notifications.filter((n) => n.status === "pending").length;
@@ -213,6 +88,12 @@ export default function Notifications({ userId }) {
     return "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700";
   };
 
+  const getStatusText = (status) => {
+    if (status === "accepted") return "Accepted";
+    if (status === "rejected") return "Declined";
+    return "Pending";
+  };
+
   return (
     <div className="relative">
       {/* Notification Bell Button */}
@@ -221,6 +102,7 @@ export default function Notifications({ userId }) {
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+        aria-label="Notifications"
       >
         <Bell className="w-6 h-6 text-gray-700 dark:text-gray-300" />
         
@@ -243,6 +125,7 @@ export default function Notifications({ userId }) {
             'bg-red-500'
           }`}
           title={connectionStatus}
+          aria-label={`Connection status: ${connectionStatus}`}
         />
       </motion.button>
 
@@ -254,6 +137,7 @@ export default function Notifications({ userId }) {
             <div
               className="fixed inset-0 z-40"
               onClick={() => setIsOpen(false)}
+              aria-hidden="true"
             />
 
             {/* Dropdown Panel */}
@@ -301,7 +185,7 @@ export default function Notifications({ userId }) {
                         Connection lost
                       </p>
                       <button
-                        onClick={handleReconnect}
+                        onClick={reconnect}
                         className="text-xs font-semibold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline"
                       >
                         Reconnect
@@ -380,7 +264,7 @@ export default function Notifications({ userId }) {
                                       ? "text-green-700 dark:text-green-400"
                                       : "text-red-700 dark:text-red-400"
                                   }>
-                                    {notification.status === "accepted" ? "Accepted" : "Declined"}
+                                    {getStatusText(notification.status)}
                                   </span>
                                 </div>
                                 <motion.button
@@ -388,6 +272,7 @@ export default function Notifications({ userId }) {
                                   whileTap={{ scale: 0.9 }}
                                   onClick={() => deleteNotification(notification.id)}
                                   className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                                  aria-label="Delete notification"
                                 >
                                   <Trash2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                                 </motion.button>

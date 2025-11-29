@@ -127,3 +127,18 @@ class AccommodationActivityIN(BaseModel):
     itinerary_id: int
     day_number: int
     date: str
+
+
+class TextMessageIN(BaseModel):
+    text: str
+    itinerary_id: int
+
+class ChatMessageOut(BaseModel):
+    id: int
+    itinerary_id: int
+    sender_id: int
+    text: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
