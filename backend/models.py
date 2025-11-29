@@ -5,7 +5,9 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
+from sqlalchemy.ext.declarative import declarative_base
 
+Base = declarative_base()
 
 class User(Base):
     __tablename__ = "users"
@@ -119,24 +121,27 @@ class Activity(Base):
     meal_activity = relationship(
         "MealActivity",
         uselist=False,
-        back_populates="activity"
+        back_populates="activity",
+        passive_deletes=True
     )
     accommodation_activity = relationship(
         "AccommodationActivity",
         uselist=False,
-        back_populates="activity"
+        back_populates="activity",
+        passive_deletes=True
     )
     sightseeing_activity = relationship(
         "SightseeingActivity",
         uselist=False,
-        back_populates="activity"
+        back_populates="activity",
+        passive_deletes=True
     )
 
 
 class MealActivity(Base):
     __tablename__ = "meal_activities"
 
-    id = Column(Integer, ForeignKey("activities.id"), primary_key=True)
+    id = Column(Integer, ForeignKey("activities.id", ondelete="CASCADE"), primary_key=True)
     cuisine_type = Column(String, nullable=True)
     restaurant_name = Column(String, nullable=True)
 
@@ -146,11 +151,11 @@ class MealActivity(Base):
 class AccommodationActivity(Base):
     __tablename__ = "accommodation_activities"
 
-    id = Column(Integer, ForeignKey("activities.id"), primary_key=True)
+    id = Column(Integer, ForeignKey("activities.id", ondelete="CASCADE"), primary_key=True)
 
     hotel_name = Column(String, nullable=False)
-    room_type = Column(String, nullable=True)
     address = Column(String, nullable=True)
+    booking_link = Column(String, nullable=True)
 
     __table_args__ = (
         UniqueConstraint("id", name="unique_accommodation_activity"),
@@ -162,14 +167,14 @@ class AccommodationActivity(Base):
 class SightseeingActivity(Base):
     __tablename__ = "sightseeing_activities"
 
-    id = Column(Integer, ForeignKey("activities.id"), primary_key=True)
+    id = Column(Integer, ForeignKey("activities.id", ondelete="CASCADE"), primary_key=True)
 
     location_name = Column(String, nullable=False)
     entry_fee = Column(Integer, nullable=True)
 
     activity = relationship("Activity", back_populates="sightseeing_activity")
 
-
+    
 class CollabNotification(Base):
     __tablename__ = "collab_notifications"
 

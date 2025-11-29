@@ -1,94 +1,73 @@
-// SightseeingActivity.jsx
+// components/SightseeingActivity.jsx
+import { Trash2, MapPin, ChevronDown, ChevronUp } from "lucide-react";
 import { motion } from "framer-motion";
-import { useState, useEffect} from "react";
-import { Eye, MapPin, Clock, DollarSign, Star, Play, Trash2, Users, ChevronRight, ChevronUp } from "lucide-react";
+import { useState } from "react";
 
 const SightseeingActivity = ({ activity, onDelete }) => {
-  const { title, description, coverImage, price, location } = activity;
-  const [showFull, setShowFull] = useState(false);
-
-  const truncatedDescription = description.length > 150 
-    ? `${description.substring(0, 150)}...` 
-    : description;
-
-  const toggleDescription = () => {
-    setShowFull(!showFull);
-  };
-
+  const [isExpanded, setIsExpanded] = useState(false);
+  const maxDescriptionLength = 100;
+  const truncatedDescription = activity.description
+    ? activity.description.length > maxDescriptionLength
+      ? `${activity.description.substring(0, maxDescriptionLength)}...`
+      : activity.description
+    : '';
+  const fullDescription = activity.description || '';
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200"
+      className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow border border-gray-200 group"
     >
-      {/* Cover Image */}
-      <div className="relative h-48 overflow-hidden">
-        <img
-          src={coverImage}
-          alt={title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-        <div className="absolute top-4 left-4 flex items-center gap-2 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full">
-          <Play className="w-4 h-4 text-red-500" />
-          <span className="text-sm font-semibold text-gray-800">Audio Tour</span>
-        </div>
-        {price && (
-          <div className="absolute bottom-4 left-4 bg-teal-500 text-white px-3 py-1 rounded-full">
-            <DollarSign className="w-3 h-3 inline mr-1" />
-            <span className="text-sm font-semibold">{price}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="p-6">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1">
-            <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2">{title}</h3>
-            <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
-              <MapPin className="w-4 h-4" />
-              <span>{location}</span>
-            </div>
-            {Array.from({ length: 4 }, (_, i) => (
-              <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400 inline" />
-            ))}
-            <Star className="w-4 h-4 text-gray-300 inline" />
-            <span className="ml-1 text-sm text-gray-500">(4.5)</span>
-          </div>
+      {activity.coverImage && (
+        <div className="relative h-48 overflow-hidden">
+          <img
+            src={activity.coverImage}
+            alt={activity.title}
+            className="w-full h-full object-cover"
+          />
           <button
             onClick={onDelete}
-            className="p-2 opacity-0 group-hover:opacity-100 hover:bg-gray-100 rounded-lg transition-all ml-2"
+            className="absolute top-3 right-3 p-2 bg-white/90 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
           >
-            <Trash2 className="w-5 h-5 text-red-500" />
+            <Trash2 className="w-4 h-4 text-red-500" />
           </button>
         </div>
-
-        <p className={`text-gray-600 text-sm leading-relaxed mb-4 transition-all duration-300 ${
-          showFull ? 'max-h-none' : 'max-h-20 overflow-hidden'
-        }`}>
-          {showFull ? description : truncatedDescription}
-        </p>
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 text-xs text-gray-500">
-            <div className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              <span>2-3 hours</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Users className="w-3 h-3" />
-              <span>Family-friendly</span>
-            </div>
+      )}
+      <div className="p-4">
+        <div className="flex items-start justify-between mb-2">
+          <h4 className="font-semibold text-gray-900 text-lg">{activity.title}</h4>
+          {!activity.coverImage && (
+            <button
+              onClick={onDelete}
+              className="p-2 opacity-0 group-hover:opacity-100 hover:bg-red-50 rounded-lg transition-all"
+            >
+              <Trash2 className="w-4 h-4 text-red-500" />
+            </button>
+          )}
+        </div>
+        {fullDescription && (
+          <div className="mb-3">
+            <p className="text-sm text-gray-600">
+              {isExpanded ? fullDescription : truncatedDescription}
+            </p>
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="text-teal-500 text-sm font-medium flex items-center gap-1 mt-1 hover:underline"
+            >
+              {isExpanded ? 'Show Less' : 'View More'}
+              {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
           </div>
-          <button 
-            onClick={toggleDescription}
-            className="text-teal-600 font-semibold text-sm hover:underline flex items-center gap-1"
-          >
-            {showFull ? 'Read Less' : 'View Details'}
-            {showFull ? <ChevronUp className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          </button>
+        )}
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2 text-gray-500">
+            <MapPin className="w-4 h-4" />
+            <span>{activity.location}</span>
+          </div>
+          {activity.price && (
+            <span className="font-semibold text-teal-600">${activity.price}</span>
+          )}
         </div>
       </div>
     </motion.div>

@@ -16,60 +16,75 @@ import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { Get_all_activities } from "../api/auth";
+import { setActivities } from "../features/ActivitiesSlice";
+import { useDispatch } from "react-redux";
 import Day from "./Day";
+import {Delete_Activity} from "../api/auth";
 
 export default function TripDestinationPlanner() {
+  const dispatch = useDispatch();
   const { id } = useParams();
   const itineraries = useSelector((state) => state.itinerary.itineraries);
-  const itinerary = itineraries.find((itinerary) => itinerary.id === parseInt(id));
-   
-  const [activities, setActivities] = useState([]);
-  
+  const activitiesState = useSelector((state) => state.activities.activities);
+  const itinerary = itineraries.find(
+    (itinerary) => itinerary.id === parseInt(id)
+  );
+
+  const [activities, setLocalActivities] = useState([]);
+
+  const fetchActivities = async () => {
+    try {
+      const response = await Get_all_activities(itinerary.id);
+      const newActivities = response.data || [];
+      setLocalActivities(newActivities);
+      dispatch(setActivities(newActivities));
+      console.log(newActivities);
+    } catch (error) {
+      console.error("Fetch error:", error);
+      setLocalActivities([]);
+    }
+  };
+
   useEffect(() => {
     if (!itinerary?.id) return;
-    const fetchActivities = async () => {
-      try {
-        const response = await Get_all_activities(itinerary.id);
-        setActivities(response.data || []);
-        console.log(response.data);
-      } catch (error) {
-        console.error("Fetch error:", error);
-        setActivities([]);
-      }
-    };
-
+    if (activities.length <= 0 && activitiesState.length > 0) {
+      setLocalActivities(activitiesState);
+      return;
+    }
     fetchActivities();
   }, [itinerary?.id]);
 
   const calculateTotalDays = () => {
     if (!itinerary?.start_date || !itinerary?.end_date) return 1;
-    
+
     const startDate = new Date(itinerary.start_date);
     const endDate = new Date(itinerary.end_date);
     const diffTime = Math.abs(endDate - startDate);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    return diffDays + 1; 
+
+    return diffDays + 1;
   };
 
   const totalDays = calculateTotalDays();
 
   const getDateForDay = (dayNumber) => {
     if (!itinerary?.start_date) return `Day ${dayNumber}`;
-    
+
     const startDate = new Date(itinerary.start_date);
     const currentDate = new Date(startDate);
     currentDate.setDate(startDate.getDate() + (dayNumber - 1));
-    
-    const options = { month: 'short', day: 'numeric', year: 'numeric' };
-    return currentDate.toLocaleDateString('en-US', options);
+
+    const options = { month: "short", day: "numeric", year: "numeric" };
+    return currentDate.toLocaleDateString("en-US", options);
   };
 
   const navigate = useNavigate();
-  
+
   const [tripData] = useState({
     title: itinerary?.title || "Plan Your Trip",
-    coverImage: itinerary?.cover_image || "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=2000",
+    coverImage:
+      itinerary?.cover_image ||
+      "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=2000",
   });
 
   const [days, setDays] = useState([]);
@@ -122,11 +137,15 @@ export default function TripDestinationPlanner() {
         return;
       }
 
-      const dayScheduleIds = [...new Set(validActivities.map(act => act.day_schedule_id))].sort((a, b) => a - b);
+      const dayScheduleIds = [
+        ...new Set(validActivities.map((act) => act.day_schedule_id)),
+      ].sort((a, b) => a - b);
 
       const newDays = [];
       for (let dsId of dayScheduleIds) {
-        const dayActs = validActivities.filter((act) => act.day_schedule_id === dsId);
+        const dayActs = validActivities.filter(
+          (act) => act.day_schedule_id === dsId
+        );
 
         if (dayActs.length === 0) {
           continue;
@@ -145,14 +164,20 @@ export default function TripDestinationPlanner() {
           const specificActivity = act[`${typeLower}_activity`];
           let location = "Unknown Location";
 
-          if (typeLower === 'meal') {
+          if (typeLower === "meal") {
             location = specificActivity?.restaurant_name || "Unknown Location";
-          } else if (typeLower === 'sightseeing') {
+          } else if (typeLower === "sightseeing") {
             location = specificActivity?.location_name || "Unknown Location";
-          } else if (typeLower === 'accommodation') {
-            location = specificActivity?.hotel_name || specificActivity?.location_name || "Unknown Location";
-          } else if (typeLower === 'transport') {
-            location = specificActivity?.to_location || specificActivity?.location_name || "Unknown Location";
+          } else if (typeLower === "accommodation") {
+            location =
+              specificActivity?.hotel_name ||
+              specificActivity?.location_name ||
+              "Unknown Location";
+          } else if (typeLower === "transport") {
+            location =
+              specificActivity?.to_location ||
+              specificActivity?.location_name ||
+              "Unknown Location";
           }
 
           if (!locGroups[location]) {
@@ -171,7 +196,8 @@ export default function TripDestinationPlanner() {
             details: act.description || "",
             type: typeLower || "unknown",
             icon: iconComponents[typeLower] || null,
-            price: specificActivity?.entry_fee || specificActivity?.cost || null,
+            price:
+              specificActivity?.entry_fee || specificActivity?.cost || null,
             coverImage: act.cover_image || null,
           };
 
@@ -200,13 +226,20 @@ export default function TripDestinationPlanner() {
     };
 
     buildDays();
-    
   }, [activities, itinerary, totalDays]);
 
   const activityTypes = [
     { value: "meal", label: "Meal", icon: iconComponents.meal },
-    { value: "sightseeing", label: "Sightseeing", icon: iconComponents.sightseeing },
-    { value: "accommodation", label: "Accommodation", icon: iconComponents.accommodation },
+    {
+      value: "sightseeing",
+      label: "Sightseeing",
+      icon: iconComponents.sightseeing,
+    },
+    {
+      value: "accommodation",
+      label: "Accommodation",
+      icon: iconComponents.accommodation,
+    },
     { value: "transport", label: "Transport", icon: iconComponents.transport },
   ];
 
@@ -230,11 +263,14 @@ export default function TripDestinationPlanner() {
 
   const addNewDay = () => {
     if (days.length >= totalDays) {
-      alert(`You cannot add more than ${totalDays} days for this trip (${itinerary.start_date} to ${itinerary.end_date})`);
+      alert(
+        `You cannot add more than ${totalDays} days for this trip (${itinerary.start_date} to ${itinerary.end_date})`
+      );
       return;
     }
 
-    const newDayNumber = days.length > 0 ? Math.max(...days.map(d => d.dayNumber)) + 1 : 1;
+    const newDayNumber =
+      days.length > 0 ? Math.max(...days.map((d) => d.dayNumber)) + 1 : 1;
     if (newDayNumber > totalDays) {
       alert(`You cannot add more than ${totalDays} days for this trip.`);
       return;
@@ -247,7 +283,7 @@ export default function TripDestinationPlanner() {
       destinations: [],
       expanded: true,
     };
-    setDays(prevDays => [...prevDays, newDay]);
+    setDays((prevDays) => [...prevDays, newDay]);
   };
 
   const handleActivityClick = (activityType, destination, day) => {
@@ -270,50 +306,36 @@ export default function TripDestinationPlanner() {
     setDays((prevDays) =>
       prevDays.map((day) =>
         day.id === dayId
-          ? { ...day, destinations: [...day.destinations, newDestination], expanded: true }
+          ? {
+              ...day,
+              destinations: [...day.destinations, newDestination],
+              expanded: true,
+            }
           : day
       )
     );
   };
 
   const handleDeleteDestination = (dayId, destinationId) => {
-    setDays((days) =>
-      days.map((day) =>
-        day.id === dayId
-          ? {
-              ...day,
-              destinations: day.destinations.filter(
-                (d) => d.id !== destinationId
-              ),
-            }
-          : day
-      )
-    );
+    console.log("Deleting destination:", { dayId, destinationId });
+  };
+  
+
+  const handleDeleteActivity = async (dayId, destinationId, activityId) => {
+    
+    console.log("Deleting activity:", { dayId, destinationId, activityId });
+    try {
+      const response = await Delete_Activity(itinerary.id, dayId, activityId);
+      console.log(response);
+      if (response) {
+        await fetchActivities();
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+    }
+   
   };
 
-  const handleDeleteActivity = (dayId, destinationId, activityId) => {
-    setDays((days) =>
-      days.map((day) =>
-        day.id === dayId
-          ? {
-              ...day,
-              destinations: day.destinations.map((destination) =>
-                destination.id === destinationId
-                  ? {
-                      ...destination,
-                      activities: destination.activities.filter(
-                        (activity) => activity.id !== activityId
-                      ),
-                    }
-                  : destination
-              ),
-            }
-          : day
-      )
-    );
-  };
-
-  // Modal states
   const [showDestinationModal, setShowDestinationModal] = useState(false);
   const [destinationSearch, setDestinationSearch] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -444,9 +466,12 @@ export default function TripDestinationPlanner() {
 
         {/* Starter */}
         <div className="max-w-5xl mx-auto px-6 py-8 text-center">
-          <h2 className="text-2xl font-semibold mb-4 text-gray-900">Your trip is ready to plan!</h2>
+          <h2 className="text-2xl font-semibold mb-4 text-gray-900">
+            Your trip is ready to plan!
+          </h2>
           <p className="text-gray-600 mb-6 max-w-md mx-auto">
-            No days have been added yet. Start by adding your first day to begin planning your itinerary.
+            No days have been added yet. Start by adding your first day to begin
+            planning your itinerary.
           </p>
           <button
             onClick={addNewDay}

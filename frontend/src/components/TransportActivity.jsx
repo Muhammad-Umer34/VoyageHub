@@ -1,8 +1,8 @@
-// components/MealActivity.jsx
-import { Trash2, MapPin } from "lucide-react";
+// components/TransportActivity.jsx
+import { Trash2, MapPin, ArrowRight, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 
-const MealActivity = ({ activity, onDelete }) => {
+const TransportActivity = ({ activity, onDelete }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -26,12 +26,7 @@ const MealActivity = ({ activity, onDelete }) => {
       )}
       <div className="p-4">
         <div className="flex items-start justify-between mb-2">
-          <div className="flex-1">
-            <h4 className="font-semibold text-gray-900 text-lg">{activity.title}</h4>
-            {activity.restaurantName && (
-              <p className="text-sm text-gray-500">{activity.restaurantName}</p>
-            )}
-          </div>
+          <h4 className="font-semibold text-gray-900 text-lg">{activity.title}</h4>
           {!activity.coverImage && (
             <button
               onClick={onDelete}
@@ -41,13 +36,24 @@ const MealActivity = ({ activity, onDelete }) => {
             </button>
           )}
         </div>
-        <div className="flex items-center justify-between text-sm mt-3">
-          <div className="flex items-center gap-2 text-gray-500">
-            <MapPin className="w-4 h-4" />
-            <span>{activity.location}</span>
-          </div>
-          {activity.dayDate && (
-            <span className="text-gray-500">{activity.dayDate}</span>
+        {activity.description && (
+          <p className="text-sm text-gray-600 mb-3">{activity.description}</p>
+        )}
+        <div className="space-y-2 text-sm">
+          {activity.from && activity.to && (
+            <div className="flex items-center gap-2 text-gray-500">
+              <MapPin className="w-4 h-4" />
+              <span>{activity.from} <ArrowRight className="w-4 h-4" /> {activity.to}</span>
+            </div>
+          )}
+          {activity.time && (
+            <div className="flex items-center gap-2 text-gray-500">
+              <Clock className="w-4 h-4" />
+              <span>{activity.time}</span>
+            </div>
+          )}
+          {activity.price && (
+            <span className="font-semibold text-teal-600 block">{activity.price}</span>
           )}
         </div>
       </div>
@@ -55,4 +61,4 @@ const MealActivity = ({ activity, onDelete }) => {
   );
 };
 
-export default MealActivity;
+export default TransportActivity;

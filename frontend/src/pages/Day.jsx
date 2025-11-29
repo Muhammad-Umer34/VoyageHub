@@ -11,11 +11,15 @@ import {
 } from "lucide-react";
 import SightseeingActivity from "../components/SightseeingActivity";
 import MealActivity from "../components/MealActivity";
+import AccommodationActivity from "../components/AccomodationActivity";
+import TransportActivity from "../components/TransportActivity";
 import { useEffect } from "react";
 
 const Day = ({ day, onOpenAddDestination, onDeleteDestination, onDeleteActivity, onActivityClick, activityTypes, getActivityColor }) => {
   const hasAccommodation = (destination) =>
     destination.activities.some((a) => a.type === "accommodation");
+
+  const dayHasAccommodation = day.destinations.some(hasAccommodation);
 
   const handleActivityClick = (activityType, destination) => {
     if (!destination.latitude || !destination.longitude) {
@@ -25,22 +29,36 @@ const Day = ({ day, onOpenAddDestination, onDeleteDestination, onDeleteActivity,
 
     onActivityClick(activityType, destination, day);
   };
+
+  const handleDayLevelActivityClick = (activityType) => {
+    if (dayHasAccommodation && activityType === "accommodation") {
+      return; 
+    }
+    const primaryDestination = day.destinations[0]; 
+    if (!primaryDestination) {
+      alert("No destinations available.");
+      return;
+    }
+    handleActivityClick(activityType, primaryDestination);
+  };
   
   useEffect(() => {
     console.log("What we recive is : ",day);
   },[])
 
   const renderActivityCard = (activity, destinationId) => {
+    const location = day.destinations[0]?.name || day.destinations[0]?.country || "Unknown Location";
+    
     if (activity.type === "sightseeing") {
       return (
         <SightseeingActivity
           key={activity.id}
           activity={{
             title: activity.title,
-            description: activity.details,
+            description: activity.details || activity.description,
             coverImage: activity.coverImage,
             price: activity.entryFee || activity.price,
-            location: activity.locationName  || "Paris, IDF, France", 
+            location: location,
           }}
           onDelete={() => onDeleteActivity(day.id, destinationId, activity.id)}
         />
@@ -48,16 +66,50 @@ const Day = ({ day, onOpenAddDestination, onDeleteDestination, onDeleteActivity,
     }
 
     if (activity.type === "meal") {
-      console.log("Rendering Meal Activity: ", activity);
       return (
         <MealActivity
           key={activity.id}
           activity={{
             title: activity.title,
             coverImage: activity.coverImage,
-            location: "Paris, IDF, France",
-            dayDate: activity.dayDate,
-            restaurantName: activity.restaurantName,
+            location: location,
+            dayDate: activity.dayDate || activity.date,
+            restaurantName: activity.restaurantName || activity.restaurant,
+          }}
+          onDelete={() => onDeleteActivity(day.id, destinationId, activity.id)}
+        />
+      );
+    }
+
+    if (activity.type === "accommodation") {
+      return (
+        <AccommodationActivity
+          key={activity.id}
+          activity={{
+            title: activity.title || activity.name,
+            coverImage: activity.coverImage,
+            address: activity.address || location,
+            checkIn: activity.checkIn,
+            checkOut: activity.checkOut,
+            price: activity.price || activity.pricePerNight,
+          }}
+          onDelete={() => onDeleteActivity(day.id, destinationId, activity.id)}
+        />
+      );
+    }
+
+    if (activity.type === "transport") {
+      return (
+        <TransportActivity
+          key={activity.id}
+          activity={{
+            title: activity.title,
+            description: activity.details || activity.description,
+            coverImage: activity.coverImage,
+            from: activity.from,
+            to: activity.to,
+            time: activity.time,
+            price: activity.price,
           }}
           onDelete={() => onDeleteActivity(day.id, destinationId, activity.id)}
         />
@@ -116,7 +168,7 @@ const Day = ({ day, onOpenAddDestination, onDeleteDestination, onDeleteActivity,
               activity.id
             )
           }
-          className="p-2 opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded-lg transition-all"
+          className="p-2 opacity-0 group-hover:opacity-100 hover:bg-red-50 rounded-lg transition-all"
         >
           <Trash2 className="w-4 h-4 text-red-500" />
         </button>
@@ -125,7 +177,6 @@ const Day = ({ day, onOpenAddDestination, onDeleteDestination, onDeleteActivity,
   };
 
   const renderDestination = (destination) => {
-    const acc = hasAccommodation(destination);
     return (
       <div
         key={destination.id}
@@ -147,92 +198,23 @@ const Day = ({ day, onOpenAddDestination, onDeleteDestination, onDeleteActivity,
             </p>
           </div>
           <button
-            onClick={() =>
-              onDeleteDestination(day.id, destination.id)
-            }
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            onClick={() => onDeleteDestination(day.id, destination.id)}
+            className="p-2 hover:bg-red-50 rounded-lg transition-all group"
+            title="Delete destination"
           >
-            <Trash2 className="w-5 h-5 text-red-500" />
+            <Trash2 className="w-5 h-5 text-gray-400 group-hover:text-red-500" />
           </button>
         </div>
 
         {destination.activities.length === 0 ? (
           <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-            <p className="text-center text-gray-500 mb-4">
+            <p className="text-center text-gray-500">
               No activities yet
             </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {activityTypes.map((type) => {
-                const IconComponent = type.icon;
-                const isDisabled =
-                  type.value === "accommodation" &&
-                  acc;
-                return (
-                  <button
-                    key={type.value}
-                    onClick={() =>
-                      !isDisabled &&
-                      handleActivityClick(
-                        type.value,
-                        destination
-                      )
-                    }
-                    disabled={isDisabled}
-                    className={`p-4 rounded-lg border border-gray-300 hover:border-teal-500 transition-all shadow-sm hover:shadow-md ${
-                      isDisabled
-                        ? "opacity-50 cursor-not-allowed bg-gray-100"
-                        : "bg-white hover:bg-gray-50"
-                    }`}
-                  >
-                    <div
-                      className={`w-12 h-12 mx-auto mb-2 ${getActivityColor(
-                        type.value
-                      )} rounded-lg flex items-center justify-center`}
-                    >
-                      <IconComponent className="w-6 h-6" />
-                    </div>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {type.label}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
           </div>
         ) : (
-          <div>
-            <div className="space-y-6 mb-6"> {/* Increased space for cards */}
-              {destination.activities.map((activity) => renderActivityCard(activity, destination.id))}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {activityTypes.map((type) => {
-                const IconComponent = type.icon;
-                const isDisabled =
-                  type.value === "accommodation" &&
-                  acc;
-                return (
-                  <button
-                    key={type.value}
-                    onClick={() =>
-                      !isDisabled &&
-                      handleActivityClick(
-                        type.value,
-                        destination
-                      )
-                    }
-                    disabled={isDisabled}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-sm hover:shadow-md ${
-                      isDisabled
-                        ? "bg-gray-200 opacity-50 cursor-not-allowed text-gray-500"
-                        : "bg-white border border-gray-200 hover:border-teal-500 text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    <IconComponent className="w-4 h-4" />
-                    Add {type.label}
-                  </button>
-                );
-              })}
-            </div>
+          <div className="grid grid-cols-1 gap-4 mb-6">
+            {destination.activities.map((activity) => renderActivityCard(activity, destination.id))}
           </div>
         )}
       </div>
@@ -273,6 +255,32 @@ const Day = ({ day, onOpenAddDestination, onDeleteDestination, onDeleteActivity,
     >
       <div className="p-6 space-y-6">
         {day.destinations.map(renderDestination)}
+
+        {/* Day-level Add Buttons */}
+        <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+          <p className="text-center text-gray-600 mb-4 font-medium">Add More Activities</p>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {activityTypes.map((type) => {
+              const IconComponent = type.icon;
+              const isDisabled = type.value === "accommodation" && dayHasAccommodation;
+              return (
+                <button
+                  key={type.value}
+                  onClick={() => !isDisabled && handleDayLevelActivityClick(type.value)}
+                  disabled={isDisabled}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-sm hover:shadow-md ${
+                    isDisabled
+                      ? "bg-gray-200 opacity-50 cursor-not-allowed text-gray-500"
+                      : "bg-white border border-gray-200 hover:border-teal-500 text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  <IconComponent className="w-4 h-4" />
+                  Add {type.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </motion.div>
   );

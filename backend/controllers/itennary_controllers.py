@@ -335,7 +335,7 @@ def activity_to_dict(activity):
         "accommodation_activity": {
             "id": activity.accommodation_activity.id,
             "hotel_name": activity.accommodation_activity.hotel_name,
-            "room_type": activity.accommodation_activity.room_type,
+            "booking_link": activity.accommodation_activity.booking_link,
             "address": activity.accommodation_activity.address,
         } if activity.accommodation_activity else None,
         "sightseeing_activity": {
@@ -372,6 +372,7 @@ async def add_meal_activity(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
+    
     day_schedule = db.query(models.DaySchedule).filter(
         models.DaySchedule.itinerary_id == data.itinerary_id,
         models.DaySchedule.day_number == data.day_number
@@ -420,3 +421,107 @@ async def add_meal_activity(
         "date": day_schedule.date,
         "day_number": day_schedule.day_number
     }
+
+@router.post("/add/accommodation-activity", status_code=status.HTTP_201_CREATED)
+async def add_accommodation_activity(
+    data: schemas.AccommodationActivityIN,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    day_schedule = db.query(models.DaySchedule).filter(
+        models.DaySchedule.itinerary_id == data.itinerary_id,
+        models.DaySchedule.day_number == data.day_number
+    ).first()
+    if not day_schedule:
+        day_schedule = models.DaySchedule(
+            itinerary_id=data.itinerary_id,
+            day_number=data.day_number,
+            date=data.date
+        )
+        db.add(day_schedule)
+        db.commit()
+        db.refresh(day_schedule)
+    activity = models.Activity(
+        day_schedule_id=day_schedule.id,
+        title=data.title,
+        type="accommodation",
+        description=data.description,
+        cover_image=data.cover_image,
+        added_by=current_user.id
+    )
+
+    db.add(activity)
+    db.commit()
+    db.refresh(activity)
+
+    accommodation = models.AccommodationActivity(
+        id=activity.id,
+        hotel_name=data.hotel_name,
+        address=data.address,
+        booking_link=data.booking_link
+    )
+
+    db.add(accommodation)
+    db.commit()
+    db.refresh(accommodation)
+
+    day_schedule.total_activities += 1
+    db.commit()
+
+    return {"message": "Accommodation activity added successfully"}
+
+
+def user_is_collaborator(db: Session, itinerary_id: int, user_id: int) -> bool:
+    return db.query(models.Collaborator).filter_by(itinerary_id=itinerary_id, user_id=user_id).count() > 0
+
+
+@router.delete("/{itinerary_id}/days/{day_id}/activities/{activity_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_activity(itinerary_id: int, day_id: int, activity_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    itinerary = db.query(Itinerary).filter(Itinerary.id == itinerary_id).first()
+    if not itinerary:
+        raise HTTPException(status_code=404, detail="Itinerary not found")
+    if current_user.id != itinerary.owner_id and not user_is_collaborator(db, itinerary_id, current_user.id):
+        raise HTTPException(status_code=403, detail="Not authorized to delete activities in this itinerary")
+
+    day_schedule = db.query(models.DaySchedule).filter(
+        models.DaySchedule.id == day_id,
+        models.DaySchedule.itinerary_id == itinerary_id
+    ).first()
+    if not day_schedule:
+        raise HTTPException(status_code=404, detail="Day schedule not found for this itinerary")
+
+    activity = db.query(models.Activity).filter(
+        models.Activity.id == activity_id,
+        models.Activity.day_schedule_id == day_id
+    ).first()
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity not found for this day schedule")
+
+    db.delete(activity)
+
+    day_schedule.total_activities = max(day_schedule.total_activities - 1, 0)
+
+    db.commit()
+    return {"detail": "Activity deleted successfully"}
+
+
+@router.delete("/itineraries/{itinerary_id}/days/{day_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_day_schedule(itinerary_id: int, day_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    itinerary = db.query(Itinerary).filter(Itinerary.id == itinerary_id).first()
+    if not itinerary:
+        raise HTTPException(status_code=404, detail="Itinerary not found")
+
+    if current_user.id != itinerary.owner_id and not user_is_collaborator(db, itinerary_id, current_user.id):
+        raise HTTPException(status_code=403, detail="Not authorized to delete this day schedule")
+
+    day_schedule = db.query(models.DaySchedule).filter(
+        models.DaySchedule.id == day_id,
+        models.DaySchedule.itinerary_id == itinerary_id
+    ).first()
+    if not day_schedule:
+        raise HTTPException(status_code=404, detail="Day schedule not found for this itinerary")
+
+    db.delete(day_schedule)
+    db.commit()
+
+    return {"detail": "Day schedule and all associated activities deleted successfully"}

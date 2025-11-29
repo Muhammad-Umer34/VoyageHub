@@ -111,3 +111,19 @@ class MealActivityIN(BaseModel):
     itinerary_id: int
     day_number: int
     date: str
+
+
+
+class AccommodationActivityIN(BaseModel):
+    title: str
+    type: str = "accommodation"
+    description: Optional[str] = None
+    cover_image: Optional[str] = None
+
+    hotel_name: str
+    address: Optional[str] = None
+    booking_link: Optional[str] = None
+
+    itinerary_id: int
+    day_number: int
+    date: str

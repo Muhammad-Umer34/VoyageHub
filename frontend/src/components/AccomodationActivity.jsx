@@ -1,8 +1,8 @@
-// components/MealActivity.jsx
+// components/AccommodationActivity.jsx
 import { Trash2, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
 
-const MealActivity = ({ activity, onDelete }) => {
+const AccommodationActivity = ({ activity, onDelete }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -26,12 +26,7 @@ const MealActivity = ({ activity, onDelete }) => {
       )}
       <div className="p-4">
         <div className="flex items-start justify-between mb-2">
-          <div className="flex-1">
-            <h4 className="font-semibold text-gray-900 text-lg">{activity.title}</h4>
-            {activity.restaurantName && (
-              <p className="text-sm text-gray-500">{activity.restaurantName}</p>
-            )}
-          </div>
+          <h4 className="font-semibold text-gray-900 text-lg">{activity.title}</h4>
           {!activity.coverImage && (
             <button
               onClick={onDelete}
@@ -41,13 +36,20 @@ const MealActivity = ({ activity, onDelete }) => {
             </button>
           )}
         </div>
-        <div className="flex items-center justify-between text-sm mt-3">
-          <div className="flex items-center gap-2 text-gray-500">
+        {activity.address && (
+          <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
             <MapPin className="w-4 h-4" />
-            <span>{activity.location}</span>
+            <span>{activity.address}</span>
           </div>
-          {activity.dayDate && (
-            <span className="text-gray-500">{activity.dayDate}</span>
+        )}
+        <div className="flex items-center justify-between text-sm">
+          {activity.checkIn && activity.checkOut && (
+            <div className="text-gray-500">
+              <span>{activity.checkIn} - {activity.checkOut}</span>
+            </div>
+          )}
+          {activity.price && (
+            <span className="font-semibold text-teal-600">{activity.price}/night</span>
           )}
         </div>
       </div>
@@ -55,4 +57,4 @@ const MealActivity = ({ activity, onDelete }) => {
   );
 };
 
-export default MealActivity;
+export default AccommodationActivity;

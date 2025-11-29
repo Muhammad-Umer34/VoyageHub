@@ -1,6 +1,7 @@
 import { MapPin, Navigation, Building2, ExternalLink } from "lucide-react";
+import { useEffect } from "react";
 
-export default function HotelCard({ hotel }) {
+export default function HotelCard({ hotel, selected, onSelect }) {
   const hotelName = hotel.name || "Hotel";
   const city = hotel.address?.cityName || "";
   const country = hotel.address?.countryCode || "";
@@ -15,7 +16,10 @@ export default function HotelCard({ hotel }) {
   const bookingUrl = `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(
     hotelName + " " + city
   )}`;
-
+  useEffect(() => {
+    console.log("Hotel Data: ", hotelName, fullAddress);
+    console.log("Booking URL: ", bookingUrl);
+  }, []);
   return (
     <div className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100 group flex flex-row">
       {/* Hotel Icon/Image Section */}
@@ -42,8 +46,15 @@ export default function HotelCard({ hotel }) {
 
       {/* Content */}
       <div className="flex-1 p-6 flex flex-col">
-        {/* Title */}
-        <div className="flex items-start justify-between gap-3 mb-3">
+        {/* Title with Radio */}
+        <div className="flex items-start gap-3 mb-3">
+          <input
+            type="radio"
+            id={`hotel-${hotel.hotelId}`}
+            checked={selected}
+            onChange={() => onSelect(hotel)}
+            className="mt-1 w-4 h-4 text-[#13C892] bg-gray-100 border-gray-300 focus:ring-[#13C892] focus:ring-2"
+          />
           <h3 className="text-xl font-bold text-gray-900 leading-tight group-hover:text-[#13C892] transition-colors flex-1">
             {hotelName}
           </h3>

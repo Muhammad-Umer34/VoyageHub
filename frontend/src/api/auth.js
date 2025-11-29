@@ -82,3 +82,12 @@ export const Get_all_activities = (itinerary_id) => {
 export const Post_Meal_Activity = (mealData) => {
   return axios.post(`http://localhost:8000/itineraries/add/meal-activity`, mealData);
 }
+
+export const Post_Accommodation_Activity = (accommodationData) => {
+  return axios.post(`http://localhost:8000/itineraries/add/accommodation-activity`, accommodationData);
+}
+
+export const Delete_Activity = (itinerary_id, day_id, activity_id) => {
+  return axios.delete(`http://localhost:8000/itineraries/${itinerary_id}/days/${day_id}/activities/${activity_id}`);
+}
+
