@@ -17,6 +17,7 @@ export const WebSocketProvider = ({ children, userId }) => {
   const [messageQueue, setMessageQueue] = useState([]);
   const [newPollMessage, setNewPollMessage] = useState(null);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const [votesCast, setVotesCast] = useState({}); 
 
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
@@ -75,6 +76,12 @@ export const WebSocketProvider = ({ children, userId }) => {
             setMessageQueue((prev) => [...prev, notification]);
             return;
           }
+          if (notification.type === 'vote_cast') {
+            console.log('🗳️ Votes cast update received:', notification);
+            setVotesCast(notification);
+            return;
+          }
+
           if (notification.type === 'poll_message') {
             console.log('📊 New poll message received:', notification);
             setNewPollMessage(notification);
@@ -204,6 +211,8 @@ export const WebSocketProvider = ({ children, userId }) => {
     activeUsers,  // expose activeUsers in context
     messageQueue,
     newPollMessage,
+    votesCast, 
+    setVotesCast,
     setNewPollMessage,
     setMessageQueue,
     reconnect,

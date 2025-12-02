@@ -363,6 +363,8 @@ def get_all_activities_of_itinerary(
         .all()
     )
 
+    print(f"Fetched {activities} activities for itinerary ID {itinerary_id}")
+
     return [activity_to_dict(a) for a in activities]
 
 
@@ -664,7 +666,6 @@ async def add_poll_message(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    # 1️⃣ Create Chat Message
     message = models.ChatMessage(
         sender_id=current_user.id,
         text="",
@@ -677,7 +678,6 @@ async def add_poll_message(
     db.commit()
     db.refresh(message)
 
-    # 2️⃣ Create Poll
     poll = models.Poll(
         message_id=message.id,
         question=data.question
@@ -686,7 +686,6 @@ async def add_poll_message(
     db.commit()
     db.refresh(poll)
 
-    # 3️⃣ Insert Poll Options
     option_objects = []
     for option_text in data.options:
         option = models.PollOption(
@@ -697,17 +696,12 @@ async def add_poll_message(
         option_objects.append(option)
 
     db.commit()
-
-    # Refresh options to get their IDs
     db.refresh(poll)
 
-    # Format poll options for returning / broadcasting
     formatted_options = [
         {"id": opt.id, "text": opt.option_text, "votes": 0}
         for opt in poll.options
     ]
-
-    # 4️⃣ Prepare data for WebSocket Broadcast
     broadcast_data = {
         "type": "poll_message",
         "message_id": message.id,
@@ -723,7 +717,6 @@ async def add_poll_message(
 
     asyncio.create_task(broadcast_chat_message(broadcast_data))
 
-    # 5️⃣ Response
     return {
         "message": "Poll message added successfully",
         "message_id": message.id,
@@ -740,11 +733,10 @@ async def add_poll_message(
 
 @router.post("/cast_vote", status_code=status.HTTP_200_OK)
 async def cast_vote(
-    vote_data: schemas.PollOptionVoteIN,  # expects poll_id and option_id (poll_option_id)
+    vote_data: schemas.PollOptionVoteIN,  
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    # Check if user has already voted in the poll (any option)
     vote_exists = (
         db.query(models.Vote)
         .join(models.PollOption, models.Vote.poll_option_id == models.PollOption.id)
@@ -758,11 +750,18 @@ async def cast_vote(
     if vote_exists:
         raise HTTPException(status_code=400, detail="Vote already cast for this poll by the user")
 
-    # Create new vote
     vote = models.Vote(
         user_id=current_user.id,
         poll_option_id=vote_data.option_id,
     )
+
+    broadcast_data = {
+        "type": "vote_cast",
+        "user_id": current_user.id,
+        "poll_option_id": vote_data.option_id,
+        "poll_id": vote_data.poll_id,
+    }
+    asyncio.create_task(broadcast_chat_message(broadcast_data))
     db.add(vote)
     db.commit()
     db.refresh(vote)

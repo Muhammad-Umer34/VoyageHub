@@ -34,7 +34,9 @@ export default function TripDestinationPlanner() {
 
   const fetchActivities = async () => {
     try {
+      console.log("Fetching activities for itinerary ID:", itinerary.id);
       const response = await Get_all_activities(itinerary.id);
+      console.log("Fetched activities:", response.data);
       const newActivities = response.data || [];
       setLocalActivities(newActivities);
       dispatch(setActivities(newActivities));
@@ -47,12 +49,8 @@ export default function TripDestinationPlanner() {
 
   useEffect(() => {
     if (!itinerary?.id) return;
-    if (activities.length <= 0 && activitiesState.length > 0) {
-      setLocalActivities(activitiesState);
-      return;
-    }
     fetchActivities();
-  }, [itinerary?.id]);
+  }, []);
 
   const calculateTotalDays = () => {
     if (!itinerary?.start_date || !itinerary?.end_date) return 1;
@@ -120,7 +118,7 @@ export default function TripDestinationPlanner() {
     return { lat: null, lon: null, country: "" };
   };
 
-  useEffect(() => {
+useEffect(() => {
     const buildDays = async () => {
       if (!itinerary) return;
 
@@ -128,8 +126,10 @@ export default function TripDestinationPlanner() {
         setDays([]);
         return;
       }
+      
+      // Don't filter by totalDays - use all activities that have a day_schedule
       const validActivities = activities.filter(
-        (act) => act.day_schedule_id >= 1 && act.day_schedule_id <= totalDays
+        (act) => act.day_schedule_id && act.day_schedule
       );
 
       if (validActivities.length === 0) {
@@ -150,11 +150,12 @@ export default function TripDestinationPlanner() {
         if (dayActs.length === 0) {
           continue;
         }
+        const dayNumber = dayActs[0].day_schedule?.day_number || 1;
 
         const day = {
           id: dsId,
-          date: getDateForDay(dsId),
-          dayNumber: dsId,
+          date: getDateForDay(dayNumber),
+          dayNumber: dayNumber,
           destinations: [],
           expanded: true,
         };

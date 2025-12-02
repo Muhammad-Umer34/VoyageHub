@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import HotelCard from "../components/HotelCard";
 import { Post_Accommodation_Activity } from "../api/auth";
+import { useNavigate } from "react-router-dom";
 
 export default function Hotel() {
+  const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
 
@@ -58,7 +60,7 @@ export default function Hotel() {
         return;
       }
 
-      const url = `https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-geocode?latitude=${latitude}&longitude=${longitude}&radius=5`;
+      const url = `https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-geocode?latitude=${latitude}&longitude=${longitude}&radius=10`;
 
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -119,6 +121,7 @@ export default function Hotel() {
     console.log("FINAL PAYLOAD →", payload);
 
     await Post_Accommodation_Activity(payload);
+    navigate(`/trips/${id}`);
   };
 
   useEffect(() => {
@@ -127,7 +130,6 @@ export default function Hotel() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#13C892] opacity-5 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#13C892] opacity-5 rounded-full blur-3xl"></div>

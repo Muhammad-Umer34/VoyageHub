@@ -5,8 +5,10 @@ import { ItalicIcon, Save } from "lucide-react";
 import { useParams } from "react-router-dom";
 import RestaurantImage from "../assets/premium_photo-1723491285855-f1035c4c703c.jpg";
 import { Post_Meal_Activity } from "../api/auth";
+import { useNavigate } from "react-router-dom";
 
 export default function Restaurant() {
+  const navigate = useNavigate();
   const location = useLocation();
   const {
     latitude,
@@ -20,7 +22,7 @@ export default function Restaurant() {
   const { id } = useParams();
 
   const API_KEY = "f585e0fb666142df93df8439bfba9423";
-  const radius = 5000;
+  const radius = 10000;
 
   const [allRestaurants, setAllRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -101,6 +103,7 @@ export default function Restaurant() {
         console.log(
           `Successfully saved meal for ${restaurant.properties.name}`
         );
+
       } catch (err) {
         console.error(
           `Failed to save meal for ${restaurant.properties.name}:`,
@@ -110,6 +113,7 @@ export default function Restaurant() {
     }
     setSelectedIds(new Set());
     console.log("All meals processed.");
+    navigate(`/trips/${id}`);
   };
 
   const loadMore = () => {

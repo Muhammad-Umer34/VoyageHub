@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, use } from "react";
 import { motion } from "framer-motion";
 import {
   MessageCircle,
@@ -10,17 +10,28 @@ import {
   Image as ImageIcon,
   BarChart3,
 } from "lucide-react";
-import { Get_All_Collaborators, Send_Chat_Message, Get_Chat_Messages } from "../api/auth";
+import {
+  Get_All_Collaborators,
+  Send_Chat_Message,
+  Get_Chat_Messages,
+} from "../api/auth";
 import { useParams, useNavigate } from "react-router-dom";
 import { useWebSocket } from "../contexts/WebSocketContext";
 import { useSelector } from "react-redux";
 import PollCreator from "../components/PollCreator";
 import PollMessage from "../components/PollMessage";
-import { Create_Poll_Message,Cast_Vote } from "../api/auth";
-
+import { Create_Poll_Message, Cast_Vote } from "../api/auth";
 
 const Chat = () => {
-  const { activeUsers, messageQueue, setMessageQueue , newPollMessage,setNewPollMessage} = useWebSocket();
+  const {
+    activeUsers,
+    messageQueue,
+    setMessageQueue,
+    newPollMessage,
+    setNewPollMessage,
+    votesCast,
+    setVotesCast,
+  } = useWebSocket();
   const currentUser = useSelector((state) => state.profile);
   const [collaborators, setCollaborators] = useState([]);
   const [message, setMessage] = useState("");
@@ -35,7 +46,66 @@ const Chat = () => {
   );
   const navigate = useNavigate();
 
-  // Helper function to transform messages for consistent structure
+useEffect(() => {
+  if (votesCast) {
+    console.log("=== useEffect triggered for votesCast ===");
+    console.log("Votes cast updated:", votesCast);
+    console.log("Current messages before vote update:", messages);
+    const { poll_id, poll_option_id, user_id } = votesCast;
+    console.log(`Vote details: poll_id=${poll_id}, option_id=${poll_option_id}, user_id=${user_id}, currentUser.id=${currentUser?.id}`);
+    
+    if (user_id !== currentUser?.id) {
+      console.log("Updating messages with new vote...");
+      setMessages((prevMessages) => {
+        console.log("prevMessages length:", prevMessages.length);
+        const updated = prevMessages.map((msg, index) => {
+          console.log(`Msg ${index}: type=${msg.message_type}, poll_id=${msg.poll_id || 'undefined'}, target_poll_id=${poll_id}`);
+          if (msg.message_type === "poll" && msg.poll_id === poll_id) {
+            console.log(`Found matching poll message: id=${msg.id}`);
+            const updatedOptions = msg.poll.options.map((opt, optIndex) => {
+              console.log(`Option ${optIndex}: id=${opt.id}, target_option_id=${poll_option_id}, current vote_count=${opt.vote_count}, votes length=${opt.votes?.length || 0}`);
+              if (opt.id === poll_option_id) {
+                const newVotes = [...(opt.votes || []), user_id];
+                const newCount = (opt.vote_count || 0) + 1;
+                console.log(`Updating option ${optIndex}: new votes length=${newVotes.length}, new count=${newCount}`);
+                return {
+                  ...opt,
+                  votes: newVotes,
+                  vote_count: newCount,
+                };
+              }
+              return opt;
+            });
+            console.log("Updated options:", updatedOptions);
+            return {
+              ...msg,
+              poll: {
+                ...msg.poll,
+                options: updatedOptions,
+              },
+            };
+          }
+          return msg;
+        });
+        console.log("Final updated messages in callback:", updated);
+        return updated;
+      });
+      // Note: Logging messages here will show the previous state due to async setState.
+      // To verify, add a separate useEffect logging on messages change.
+      console.log("Messages after vote update (async - may show old state):", messages);
+      setVotesCast(null);
+    } else {
+      console.log("Vote cast by current user; no update needed.");
+    }
+  }
+}, [votesCast]);
+
+// Add this separate useEffect to log whenever messages state changes (helps verify if setMessages actually updated)
+useEffect(() => {
+  console.log("=== Messages state updated ===");
+  console.log("Messages:", messages);
+}, [messages]);
+
   const transformMessage = (msg) => {
     if (msg.message_type === "poll") {
       return {
@@ -47,10 +117,10 @@ const Chat = () => {
           options: msg.options.map((opt) => ({
             id: opt.id,
             text: opt.text,
-            votes: Array(opt.vote_count).fill(null), // Simulate votes for count display
+            votes: [],
             vote_count: opt.vote_count,
           })),
-          multipleChoice: false, // Default; adjust if backend supports
+          multipleChoice: false,
         },
       };
     } else {
@@ -63,7 +133,6 @@ const Chat = () => {
 
   const transformMessages = (rawMessages) => rawMessages.map(transformMessage);
 
-  // Scroll to bottom of messages
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -76,17 +145,14 @@ const Chat = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
-        // Fetch collaborators
+
         const collabResponse = await Get_All_Collaborators(id);
         setCollaborators(collabResponse.data);
         console.log("Collaborators:", collabResponse.data);
-        
-        // Fetch chat messages
+
         const chatResponse = await Get_Chat_Messages(id);
         console.log("Chat Messages Response:", chatResponse.data);
         setMessages(transformMessages(chatResponse.data || []));
-        
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -106,7 +172,12 @@ const Chat = () => {
         (msg) => msg.itinerary_id === itineraryId
       );
       if (relevantMessages.length > 0) {
-        console.log("Processing relevant messages for itinerary", itineraryId, ":", relevantMessages);
+        console.log(
+          "Processing relevant messages for itinerary",
+          itineraryId,
+          ":",
+          relevantMessages
+        );
         const messagesToAdd = relevantMessages
           .filter((msg) => msg.sender_id !== currentUser.id)
           .map(({ message_id, itinerary_id, sender_id, text, timestamp }) => ({
@@ -115,7 +186,7 @@ const Chat = () => {
             sender_id,
             text,
             created_at: timestamp,
-            type: "text", // Assume text for WebSocket messages
+            type: "text",
           }))
           .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
         if (messagesToAdd.length > 0) {
@@ -130,30 +201,28 @@ const Chat = () => {
   }, [messageQueue, id, currentUser?.id]);
 
   useEffect(() => {
-    if(!newPollMessage) return;
+    if (!newPollMessage) return;
     const dataofnewpollmessage = {
-        itinerary_id : newPollMessage.itinerary_id,
-        created_at : newPollMessage.timestamp,
-        sender_id : newPollMessage.sender_id,
-        message_type : "poll",
-        text : "",
-        poll_id : newPollMessage.poll.id,
-        question : newPollMessage.poll.question,
-        options : newPollMessage.poll.options,
-        id:newPollMessage.message_id,
-      }
+      itinerary_id: newPollMessage.itinerary_id,
+      created_at: newPollMessage.timestamp,
+      sender_id: newPollMessage.sender_id,
+      message_type: "poll",
+      text: "",
+      poll_id: newPollMessage.poll.id,
+      question: newPollMessage.poll.question,
+      options: newPollMessage.poll.options,
+      id: newPollMessage.message_id,
+    };
 
-      console.log("New poll message data:", dataofnewpollmessage);
-      setMessages(prev => [...prev, transformMessage(dataofnewpollmessage)]);
-      setNewPollMessage(null); // Clear after processing
+    console.log("New poll message data:", dataofnewpollmessage);
+    setMessages((prev) => [...prev, transformMessage(dataofnewpollmessage)]);
+    setNewPollMessage(null);
   }, [newPollMessage]);
 
-  // Check if user is online
   const isUserOnline = (userId) => {
     return activeUsers && activeUsers.includes(userId);
   };
 
-  // Get online collaborators count
   const onlineCount = collaborators.filter((collab) =>
     isUserOnline(collab.id)
   ).length;
@@ -162,42 +231,41 @@ const Chat = () => {
     e.preventDefault();
     if (message.trim()) {
       try {
-        // Optimistic UI update
         const tempMessage = {
           id: `temp-${Date.now()}`,
           itinerary_id: parseInt(id),
           sender_id: currentUser?.id,
           text: message.trim(),
           created_at: new Date().toISOString(),
-          type: "text"
+          type: "text",
         };
-        
+
         setMessages((prev) => [...prev, tempMessage]);
         setMessage("");
 
-        // Send to backend
         const data = { itinerary_id: id, text: message.trim() };
         const response = await Send_Chat_Message(data);
         console.log("Message sent response:", response);
 
         if (response.data) {
           const transformedResponse = transformMessage(response.data);
-          setMessages((prev) => 
-            prev.map((msg) => 
+          setMessages((prev) =>
+            prev.map((msg) =>
               msg.id === tempMessage.id ? transformedResponse : msg
             )
           );
         }
       } catch (error) {
         console.error("Error sending message:", error);
-        setMessages((prev) => prev.filter((msg) => !msg.id.toString().startsWith("temp-")));
+        setMessages((prev) =>
+          prev.filter((msg) => !msg.id.toString().startsWith("temp-"))
+        );
         alert("Failed to send message. Please try again.");
       }
     }
   };
 
   const handleCreatePoll = async (pollData) => {
-    // Optimistic UI update
     const tempPollMessage = {
       id: `poll-${Date.now()}`,
       itinerary_id: parseInt(id),
@@ -218,33 +286,45 @@ const Chat = () => {
     };
 
     setMessages((prev) => [...prev, tempPollMessage]);
-    
+
     const data = {
       itinerary_id: id,
       question: pollData.question,
       options: pollData.options,
     };
     console.log("Data to send for poll creation:", data);
-    console.log("Creating poll:", pollData);
-    
+
     try {
       const res = await Create_Poll_Message(data);
       console.log("Poll created response:", res);
-      const transformedResponse = transformMessage(res.data);
-      setMessages((prev) => 
-        prev.map((msg) => 
+      let transformedResponse = transformMessage(res.data);
+
+      // Fix for newly created poll: Force vote_count to 0 and empty votes array
+      // to ensure initial state shows no votes, regardless of server response
+      transformedResponse.poll.options = transformedResponse.poll.options.map(
+        (opt) => ({
+          ...opt,
+          votes: [],
+          vote_count: 0,
+        })
+      );
+
+      setMessages((prev) =>
+        prev.map((msg) =>
           msg.id === tempPollMessage.id ? transformedResponse : msg
         )
       );
     } catch (err) {
       console.error("Error creating poll:", err);
-      setMessages((prev) => prev.filter((msg) => msg.id !== tempPollMessage.id));
+      setMessages((prev) =>
+        prev.filter((msg) => msg.id !== tempPollMessage.id)
+      );
       alert("Failed to create poll. Please try again.");
     }
     setShowPollCreator(false);
   };
-
   const handleVote = async (pollId, optionIndices) => {
+    console.log("Messages before voting:", messages);
     // Optimistic update
     setMessages((prev) =>
       prev.map((msg) => {
@@ -257,38 +337,69 @@ const Chat = () => {
                 if (optionIndices.includes(idx)) {
                   return {
                     ...opt,
-                    votes: [...(opt.votes || []), currentUser.id]
+                    votes: [...(opt.votes || []), currentUser.id],
+                    vote_count: (opt.vote_count || 0) + 1,
                   };
                 }
                 return opt;
-              })
-            }
+              }),
+            },
           };
         }
         return msg;
       })
     );
-
-    // TODO: Send vote to backend
+    console.log("Messages after optimistic update:", messages);
     console.log("Voting for poll:", pollId, "options indices:", optionIndices);
-    
-    // Find the poll to get actual option ids
-    const pollMsg = messages.find(m => m.type === "poll" && m.poll.id === pollId);
+
+    const pollMsg = messages.find(
+      (m) => m.type === "poll" && m.poll.id === pollId
+    );
     if (pollMsg && pollMsg.poll) {
-      const selectedOptionIds = optionIndices.map(idx => pollMsg.poll.options[idx]?.id);
+      const selectedOptionIds = optionIndices.map(
+        (idx) => pollMsg.poll.options[idx]?.id
+      );
       console.log("Selected option ids:", selectedOptionIds);
-      
-      // Assuming single vote for now; extend for multiple if needed
+
       if (selectedOptionIds.length > 0) {
-        const dataToCastVote = { poll_id: pollId, option_id: selectedOptionIds[0] };
+        const dataToCastVote = {
+          poll_id: pollId,
+          option_id: selectedOptionIds[0],
+        };
         console.log("Data to cast vote:", dataToCastVote);
-        
+
         try {
           const response = await Cast_Vote(dataToCastVote);
           console.log("Vote response:", response);
         } catch (error) {
           console.error("Error casting vote:", error);
-          // Optionally revert optimistic update
+          // Revert optimistic update on error
+          setMessages((prev) =>
+            prev.map((msg) => {
+              if (msg.type === "poll" && msg.poll.id === pollId) {
+                return {
+                  ...msg,
+                  poll: {
+                    ...msg.poll,
+                    options: msg.poll.options.map((opt, idx) => {
+                      if (optionIndices.includes(idx)) {
+                        return {
+                          ...opt,
+                          votes: (opt.votes || []).filter(
+                            (id) => id !== currentUser.id
+                          ),
+                          vote_count: Math.max((opt.vote_count || 0) - 1, 0),
+                        };
+                      }
+                      return opt;
+                    }),
+                  },
+                };
+              }
+              return msg;
+            })
+          );
+          alert("Failed to cast vote. Please try again.");
         }
       }
     }
@@ -340,15 +451,17 @@ const Chat = () => {
 
   const renderMessage = (msg, index) => {
     const senderInfo = getSenderInfo(msg.sender_id);
-    const showAvatar = index === 0 || messages[index - 1]?.sender_id !== msg.sender_id;
+    const showAvatar =
+      index === 0 || messages[index - 1]?.sender_id !== msg.sender_id;
 
     if (msg.type === "poll") {
       return (
         <div
           key={msg.id}
-          className={`flex gap-3 w-full ${senderInfo.isCurrentUser ? "flex-row-reverse" : ""}`}
+          className={`flex gap-3 w-full ${
+            senderInfo.isCurrentUser ? "flex-row-reverse" : ""
+          }`}
         >
-          {/* Avatar */}
           <div className="flex-shrink-0 w-8">
             {!senderInfo.isCurrentUser && showAvatar && (
               <>
@@ -367,7 +480,6 @@ const Chat = () => {
             )}
           </div>
 
-          {/* Poll Bubble */}
           <div
             className={`flex flex-col max-w-md ${
               senderInfo.isCurrentUser ? "items-end" : "items-start"
@@ -378,19 +490,11 @@ const Chat = () => {
                 {senderInfo.name} created a poll
               </span>
             )}
-            <div
-              className={`rounded-2xl ${
-                senderInfo.isCurrentUser
-                  ? "bg-teal-500 text-white rounded-br-sm"
-                  : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm shadow-sm"
-              }`}
-            >
-              <PollMessage 
-                poll={msg.poll} 
-                currentUserId={currentUser?.id}
-                onVote={handleVote}
-              />
-            </div>
+            <PollMessage
+              poll={msg.poll}
+              currentUserId={currentUser?.id}
+              onVote={handleVote}
+            />
             <span
               className={`text-xs mt-1 px-1 ${
                 senderInfo.isCurrentUser
@@ -408,9 +512,10 @@ const Chat = () => {
     return (
       <div
         key={msg.id}
-        className={`flex gap-3 ${senderInfo.isCurrentUser ? "flex-row-reverse" : ""}`}
+        className={`flex gap-3 ${
+          senderInfo.isCurrentUser ? "flex-row-reverse" : ""
+        }`}
       >
-        {/* Avatar */}
         <div className="flex-shrink-0 w-8">
           {!senderInfo.isCurrentUser && showAvatar && (
             <>
@@ -429,7 +534,6 @@ const Chat = () => {
           )}
         </div>
 
-        {/* Message Bubble */}
         <div
           className={`flex flex-col ${
             senderInfo.isCurrentUser ? "items-end" : "items-start"
@@ -447,7 +551,9 @@ const Chat = () => {
                 : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm shadow-sm"
             }`}
           >
-            <p className="text-sm break-words whitespace-pre-wrap">{msg.text}</p>
+            <p className="text-sm break-words whitespace-pre-wrap">
+              {msg.text}
+            </p>
           </div>
           <span
             className={`text-xs mt-1 px-1 ${
@@ -465,9 +571,8 @@ const Chat = () => {
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-[#16181d]">
-      {/* Sidebar - Group Members */}
+      {/* Sidebar remains the same */}
       <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-        {/* Header */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-4">
             <button
@@ -483,7 +588,6 @@ const Chat = () => {
             <div className="w-9" />
           </div>
 
-          {/* Group Info */}
           <div className="space-y-2">
             <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 rounded-lg">
               <div className="flex items-center gap-2">
@@ -502,7 +606,6 @@ const Chat = () => {
           </div>
         </div>
 
-        {/* Members List */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-3">
             <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
@@ -536,7 +639,9 @@ const Chat = () => {
                       )}
                       <div
                         className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-gray-800 ${
-                          isUserOnline(collab.id) ? "bg-green-500" : "bg-gray-400"
+                          isUserOnline(collab.id)
+                            ? "bg-green-500"
+                            : "bg-gray-400"
                         }`}
                       />
                     </div>
@@ -561,7 +666,6 @@ const Chat = () => {
 
       {/* Chat Area */}
       <div className="flex-1 flex flex-col">
-        {/* Chat Header */}
         <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
@@ -589,13 +693,14 @@ const Chat = () => {
           </button>
         </div>
 
-        {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50 dark:bg-[#16181d]">
           {loading ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
                 <div className="w-12 h-12 mx-auto mb-3 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
-                <p className="text-gray-500 dark:text-gray-400">Loading messages...</p>
+                <p className="text-gray-500 dark:text-gray-400">
+                  Loading messages...
+                </p>
               </div>
             </div>
           ) : messages.length === 0 ? (
@@ -608,7 +713,8 @@ const Chat = () => {
                   Welcome to the group chat!
                 </h3>
                 <p className="text-gray-500 dark:text-gray-400 max-w-md">
-                  Share updates, coordinate plans, and discuss your trip with all collaborators in one place.
+                  Share updates, coordinate plans, and discuss your trip with
+                  all collaborators in one place.
                 </p>
               </div>
             </div>
@@ -620,7 +726,6 @@ const Chat = () => {
           )}
         </div>
 
-        {/* Message Input */}
         <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
           <form onSubmit={handleSendMessage} className="flex items-end gap-2">
             <div className="flex-1 flex items-center gap-2 px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl focus-within:ring-2 focus-within:ring-teal-500">
@@ -662,7 +767,6 @@ const Chat = () => {
         </div>
       </div>
 
-      {/* Poll Creator Modal */}
       <PollCreator
         isOpen={showPollCreator}
         onClose={() => setShowPollCreator(false)}

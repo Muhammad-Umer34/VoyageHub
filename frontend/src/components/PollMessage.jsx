@@ -1,4 +1,4 @@
-import { useState ,useEffect} from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { BarChart3, Check, Users } from "lucide-react";
 import { Did_I_Vote } from "../api/auth";
@@ -20,30 +20,7 @@ const PollMessage = ({ poll, currentUserId, onVote }) => {
         if (response.data.did_vote) {
           setHasVoted(true);
           const votedOptionId = response.data.poll_option_id;
-          const newOptions = poll.options.map((opt) => {
-            if (opt.id === votedOptionId) {
-              const existingVotes = opt.votes || [];
-              // Ensure votes length matches vote_count, adding user ID
-              const adjustedVotes = [...existingVotes.filter(v => v !== currentUserId), currentUserId];
-              while (adjustedVotes.length < opt.vote_count) {
-                adjustedVotes.push(null);
-              }
-              while (adjustedVotes.length > opt.vote_count) {
-                adjustedVotes.pop();
-              }
-              return {
-                ...opt,
-                votes: adjustedVotes,
-              };
-            } else {
-              return {
-                ...opt,
-              };
-            }
-          });
-          setLocalOptions(newOptions);
-          // Set selected for display
-          const votedIndex = newOptions.findIndex((opt) => opt.id === votedOptionId);
+          const votedIndex = poll.options.findIndex((opt) => opt.id === votedOptionId);
           if (votedIndex !== -1) {
             setSelectedOptions([votedIndex]);
           }
@@ -54,9 +31,9 @@ const PollMessage = ({ poll, currentUserId, onVote }) => {
     };
     checkVoteStatus();
   }, [poll, currentUserId]);
-  
+
   const totalVotes = localOptions.reduce((sum, opt) => sum + (opt.votes?.length || opt.vote_count || 0), 0);
-  
+
   const getVotePercentage = (option) => {
     const voteLength = option.votes?.length || option.vote_count || 0;
     if (totalVotes === 0) return 0;
@@ -88,7 +65,7 @@ const PollMessage = ({ poll, currentUserId, onVote }) => {
     }
   };
 
-  const userHasVotedInPoll = localOptions.some((opt) => hasUserVoted(opt));
+  const userHasVotedInPoll = hasVoted;
 
   return (
     <motion.div
