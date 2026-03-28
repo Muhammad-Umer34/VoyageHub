@@ -152,15 +152,4 @@ Contributions are welcome!
 
 ```
 
----
 
-### 🔥 What makes this strong:
-- Includes **Docker (very important for recruiters)**
-- Clean structure + professional tone  
-- Shows **real-time + backend + DB + DevOps skills**  
-- Easy for anyone to run your project  
-
----
-
-If you want, I can **add badges (Docker, PostgreSQL, FastAPI, React)** at the top to make it look like a top-tier GitHub repo.
-```
